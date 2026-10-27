@@ -1,0 +1,299 @@
+[
+  {
+    "code": "policy-page",
+    "name": "Policy Page",
+    "description": "Policy page (POLPG) letters sent after a policy is activated or issued. NGC mapper: PolicyPageXmlMapper.",
+    "cases": [
+      {
+        "key": "gili-policy-page-owner-print",
+        "name": "GILI policy page - owner, print",
+        "description": "Policy activation sends the policy page to the owner as print, with the servicing agent copied. Seen in Dev for GCFIA901, GCFIA902 and GCFIA903. PLACEHOLDER payload: replace the REPLACE_ME values (policy number, party and policy reference ids) with a real Dev test policy before running; everything else mirrors what NGC receives in Dev.",
+        "kafkaKind": "SOR",
+        "topic": "zinnia.correspondence.sor",
+        "eventType": "policy.activation.completed",
+        "carrier": "GILI",
+        "planCodes": [
+          "GCFIA901",
+          "GCFIA902",
+          "GCFIA903"
+        ],
+        "payload": "policy-page-activation.json",
+        "timeout": 600,
+        "tags": [
+          "client:GILI",
+          "mapper:policy-page"
+        ],
+        "expected": {
+          "incomingEvent": {
+            "status": "SENT_TO_CDS"
+          },
+          "targets": [
+            {
+              "role": "OWNER",
+              "status": "SENT_TO_CDS",
+              "deliveryType": "PRINT",
+              "agentType": "PRIMARYSERVICINGAGENT",
+              "documentType": "POLPG",
+              "xmlFileName": "present"
+            }
+          ],
+          "cds": {
+            "published": true
+          },
+          "journey": [
+            "requestValid",
+            "requestStart",
+            "requestSentToCDS"
+          ],
+          "noFailures": [
+            "technical_failures",
+            "dead_letter_events"
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "code": "anniversary",
+    "name": "Anniversary",
+    "description": "Annual anniversary statements (ANNSTM). NGC mapper: AnniversaryXmlMapper.",
+    "cases": [
+      {
+        "key": "gili-anniversary-gcfia901",
+        "name": "GILI anniversary statement - GCFIA901",
+        "description": "GCFIA901 anniversary goes to the owner as print with email YES and the servicing agent copied. PLACEHOLDER payload: replace the REPLACE_ME values (policy number, party and policy reference ids) with a real Dev test policy before running; everything else mirrors what NGC receives in Dev.",
+        "kafkaKind": "SOR",
+        "topic": "zinnia.correspondence.sor",
+        "eventType": "policy.anniversary.completed",
+        "carrier": "GILI",
+        "planCodes": [
+          "GCFIA901"
+        ],
+        "payload": "anniversary-gcfia901.json",
+        "timeout": 600,
+        "tags": [
+          "client:GILI",
+          "mapper:anniversary"
+        ],
+        "expected": {
+          "incomingEvent": {
+            "status": "SENT_TO_CDS"
+          },
+          "targets": [
+            {
+              "role": "OWNER",
+              "status": "SENT_TO_CDS",
+              "deliveryType": "PRINT",
+              "emailNotification": "YES",
+              "agentType": "PRIMARYSERVICINGAGENT",
+              "documentType": "ANNSTM",
+              "xmlFileName": "present"
+            }
+          ],
+          "cds": {
+            "published": true
+          },
+          "journey": [
+            "requestValid",
+            "requestStart",
+            "requestSentToCDS"
+          ],
+          "noFailures": [
+            "technical_failures",
+            "dead_letter_events"
+          ]
+        }
+      },
+      {
+        "key": "gili-anniversary-gcfia902",
+        "name": "GILI anniversary statement - GCFIA902",
+        "description": "GCFIA902 anniversary goes to the owner; delivery type and agent copy are not recorded by NGC for this plan in Dev, so they are not asserted. PLACEHOLDER payload: replace the REPLACE_ME values (policy number, party and policy reference ids) with a real Dev test policy before running; everything else mirrors what NGC receives in Dev.",
+        "kafkaKind": "SOR",
+        "topic": "zinnia.correspondence.sor",
+        "eventType": "policy.anniversary.completed",
+        "carrier": "GILI",
+        "planCodes": [
+          "GCFIA902"
+        ],
+        "payload": "anniversary-gcfia902.json",
+        "timeout": 600,
+        "tags": [
+          "client:GILI",
+          "mapper:anniversary"
+        ],
+        "expected": {
+          "incomingEvent": {
+            "status": "SENT_TO_CDS"
+          },
+          "targets": [
+            {
+              "role": "OWNER",
+              "status": "SENT_TO_CDS",
+              "documentType": "ANNSTM",
+              "xmlFileName": "present"
+            }
+          ],
+          "cds": {
+            "published": true
+          },
+          "journey": [
+            "requestValid",
+            "requestStart",
+            "requestSentToCDS"
+          ],
+          "noFailures": [
+            "technical_failures",
+            "dead_letter_events"
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "code": "new-business",
+    "name": "New Business",
+    "description": "New business letters from BPM events. NGC mapper: NewBusinessLettersXmlMapper.",
+    "cases": [
+      {
+        "key": "gili-transfer-of-assets-gcfia901",
+        "name": "GILI transfer of assets - GCFIA901",
+        "description": "Transfer of assets goes to the exchange company (ORGANIZATION) as print, no agent copy. Arrives on the BPM topic from BPM.TransferProcessing. PLACEHOLDER payload: replace the REPLACE_ME values (policy number, party and policy reference ids) with a real Dev test policy before running; everything else mirrors what NGC receives in Dev.",
+        "kafkaKind": "BPM",
+        "topic": "zinnia.correspondence.{env}",
+        "eventType": "newbusiness.transferOfAssets.notification",
+        "carrier": "GILI",
+        "planCodes": [
+          "GCFIA901"
+        ],
+        "payload": "transfer-of-assets-gcfia901.json",
+        "timeout": 600,
+        "tags": [
+          "client:GILI",
+          "mapper:new-business"
+        ],
+        "expected": {
+          "incomingEvent": {
+            "status": "SENT_TO_CDS"
+          },
+          "targets": [
+            {
+              "role": "ORGANIZATION",
+              "status": "SENT_TO_CDS",
+              "deliveryType": "PRINT",
+              "agentType": "NA",
+              "xmlFileName": "present"
+            }
+          ],
+          "cds": {
+            "published": true
+          },
+          "journey": [
+            "requestValid",
+            "requestStart",
+            "requestSentToCDS"
+          ],
+          "noFailures": [
+            "technical_failures",
+            "dead_letter_events"
+          ]
+        }
+      },
+      {
+        "key": "gili-transfer-of-assets-gcfia902",
+        "name": "GILI transfer of assets - GCFIA902",
+        "description": "Same event for GCFIA902; Dev shows both PRINT and FAX for the exchange company, so delivery type is not asserted. PLACEHOLDER payload: replace the REPLACE_ME values (policy number, party and policy reference ids) with a real Dev test policy before running; everything else mirrors what NGC receives in Dev.",
+        "kafkaKind": "BPM",
+        "topic": "zinnia.correspondence.{env}",
+        "eventType": "newbusiness.transferOfAssets.notification",
+        "carrier": "GILI",
+        "planCodes": [
+          "GCFIA902"
+        ],
+        "payload": "transfer-of-assets-gcfia902.json",
+        "timeout": 600,
+        "tags": [
+          "client:GILI",
+          "mapper:new-business"
+        ],
+        "expected": {
+          "incomingEvent": {
+            "status": "SENT_TO_CDS"
+          },
+          "targets": [
+            {
+              "role": "ORGANIZATION",
+              "status": "SENT_TO_CDS",
+              "agentType": "NA",
+              "xmlFileName": "present"
+            }
+          ],
+          "cds": {
+            "published": true
+          },
+          "journey": [
+            "requestValid",
+            "requestStart",
+            "requestSentToCDS"
+          ],
+          "noFailures": [
+            "technical_failures",
+            "dead_letter_events"
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "code": "policy",
+    "name": "Policy",
+    "description": "Letters for policy servicing transactions from Zahara policy events (automated letters such as withdrawals, loans, surrenders). NGC mappers: AutomatedLettersXmlMapper and GenericLettersXmlMapper.",
+    "cases": [
+      {
+        "key": "gili-partial-withdrawal-gcfia901",
+        "name": "GILI one-time partial withdrawal - GCFIA901",
+        "description": "A completed one-time partial withdrawal sends a financial confirmation (FICON) to the owner as print with email YES and the servicing agent copied. PLACEHOLDER payload: replace the REPLACE_ME values (policy number, party and policy reference ids) with a real Dev test policy before running; everything else mirrors what NGC receives in Dev.",
+        "kafkaKind": "SOR",
+        "topic": "zinnia.correspondence.sor",
+        "eventType": "policy.partialwithdrawalonetime.completed",
+        "carrier": "GILI",
+        "planCodes": [
+          "GCFIA901"
+        ],
+        "payload": "partial-withdrawal-gcfia901.json",
+        "timeout": 600,
+        "tags": [
+          "client:GILI",
+          "mapper:automated-letter"
+        ],
+        "expected": {
+          "incomingEvent": {
+            "status": "SENT_TO_CDS"
+          },
+          "targets": [
+            {
+              "role": "OWNER",
+              "status": "SENT_TO_CDS",
+              "deliveryType": "PRINT",
+              "emailNotification": "YES",
+              "agentType": "PRIMARYSERVICINGAGENT",
+              "documentType": "FICON",
+              "xmlFileName": "present"
+            }
+          ],
+          "cds": {
+            "published": true
+          },
+          "journey": [
+            "requestValid",
+            "requestStart",
+            "requestSentToCDS"
+          ],
+          "noFailures": [
+            "technical_failures",
+            "dead_letter_events"
+          ]
+        }
+      }
+    ]
+  }
+]

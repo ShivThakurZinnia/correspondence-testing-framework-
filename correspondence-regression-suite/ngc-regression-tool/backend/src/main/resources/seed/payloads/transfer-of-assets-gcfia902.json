@@ -1,0 +1,33 @@
+{
+  "id": "00000000-0000-4000-8000-000000000002",
+  "correlationid": "00000000-0000-4000-8000-000000000001",
+  "source": "BPM.TransferProcessing",
+  "specversion": "V1",
+  "type": "newbusiness.transferOfAssets.notification",
+  "datacontenttype": "application/json",
+  "carrier": "GILI",
+  "time": "2026-01-01T00:00:00.000Z",
+  "data": "{\"caseId\":\"REPLACE_ME\",\"policyNumber\":\"REPLACE_ME\",\"planCode\":\"GCFIA902\",\"qualType\":\"INDIVIDUALRETIREMENTACCOUNTREGULAR\",\"document\":[{\"source\":\"REPLACE_ME\",\"id\":\"REPLACE_ME\",\"name\":\"REPLACE_ME\",\"sequenceId\":1}],\"payload\":{\"coverageDetails\":{\"productMarketingName\":\"REPLACE_ME\",\"owners\":[],\"annuitant\":[],\"agents\":[]}},\"exchange\":{\"compAccountNumber\":\"REPLACE_ME\",\"compName\":\"REPLACE_ME\",\"compAddressLine1\":\"REPLACE_ME\",\"compCity\":\"REPLACE_ME\",\"compState\":\"REPLACE_ME\",\"compZip\":\"REPLACE_ME\",\"totalAmount\":0,\"erNumber\":\"REPLACE_ME\",\"deliveryMode\":\"PRINT\"}}",
+  "identifiers": [
+    {
+      "identifier": "policyNumber",
+      "value": "REPLACE_ME"
+    },
+    {
+      "identifier": "applicationId",
+      "value": "REPLACE_ME"
+    },
+    {
+      "identifier": "planCode",
+      "value": "GCFIA902"
+    },
+    {
+      "identifier": "zlCaseId",
+      "value": "REPLACE_ME"
+    },
+    {
+      "identifier": "externalTrackingId",
+      "value": "REPLACE_ME"
+    }
+  ]
+}
