@@ -1,0 +1,6 @@
+{
+  "id": "REPLACED_BY_RUNNER", "correlationid": "REPLACED_BY_RUNNER",
+  "type": "REPLACE_WITH_NGC_APPROVED_POLICY_PAGE_EVENT", "carrier": "REPLACE_WITH_APPROVED_CARRIER",
+  "specversion": "1.0", "time": "2026-10-27T12:00:00Z", "datacontenttype": "application/json",
+  "data": {"policyNumber": "TEST-POL-1001"}
+}

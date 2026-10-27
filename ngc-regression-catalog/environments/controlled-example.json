@@ -1,0 +1,9 @@
+{
+  "schemaVersion": "1.0", "id": "controlled-example", "deliveryFence": "ISOLATED_ROUTING",
+  "channels": {"ngc.bpm.incoming": "REPLACE_WITH_ISOLATED_TEST_TOPIC"},
+  "connectors": {
+    "ngc": {"connectorId": "ngcConnector", "implementationVersion": "0.1.0", "serviceContractVersion": "1.0.0", "evidenceMode": "REAL", "configRef": "deployment://ngc-controlled-example"},
+    "cds": {"connectorId": "cdsConnector", "implementationVersion": "0.1.0", "serviceContractVersion": "1.0.0", "evidenceMode": "REAL", "configRef": "deployment://isolated-cds-kafka-observer-example"},
+    "tango": {"connectorId": "tangoConnector", "implementationVersion": "0.1.0", "serviceContractVersion": "1.0.0", "evidenceMode": "SIMULATED", "configRef": "deployment://tango-simulator-example"}
+  }
+}

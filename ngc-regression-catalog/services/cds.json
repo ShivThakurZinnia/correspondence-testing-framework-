@@ -1,0 +1,28 @@
+{
+  "schemaVersion": "1.0", "id": "cds", "contractVersion": "1.0.0", "connectorId": "cdsConnector",
+  "description": "Observe broker-published CDS requests. This proves handoff, not CDS processing completion.",
+  "capabilities": [{
+    "id": "cds.request.published", "version": "1.0.0",
+    "description": "Observe and correlate the actual Kafka request and its XML artifact reference.",
+    "supportedEvidence": ["REAL"],
+    "prerequisites": [{"id": "ngc.letter.prepared", "version": "1.0.0"}],
+    "inputSchema": {
+      "type": "object", "additionalProperties": false,
+      "required": ["correlationId", "targetEventUniqueId", "xmlArtifactUri"],
+      "properties": {"correlationId": {"type": "string", "minLength": 1}, "targetEventUniqueId": {"type": "string", "minLength": 1}, "xmlArtifactUri": {"type": "string", "minLength": 1}}
+    },
+    "evidenceSchema": {
+      "type": "object", "additionalProperties": false,
+      "required": ["requestId", "targetEventUniqueId", "xmlArtifactUri", "published", "sender", "topic", "partition", "offset"],
+      "properties": {
+        "requestId": {"type": "string", "minLength": 1}, "targetEventUniqueId": {"type": "string", "minLength": 1},
+        "xmlArtifactUri": {"type": "string", "minLength": 1}, "published": {"type": "boolean"}, "sender": {"type": "string"},
+        "topic": {"type": "string", "minLength": 1}, "partition": {"type": "integer", "minimum": 0}, "offset": {"type": "integer", "minimum": 0}
+      }
+    },
+    "expectationSchema": {
+      "type": "object", "additionalProperties": false, "required": ["published", "sender"],
+      "properties": {"published": {"const": true}, "sender": {"const": "NGC"}}
+    }
+  }]
+}

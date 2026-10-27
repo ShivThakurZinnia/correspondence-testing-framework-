@@ -1,0 +1,44 @@
+{
+  "schemaVersion": "1.0", "id": "policy-page-simulated-lifecycle", "revision": 1,
+  "description": "Verify real NGC and Kafka behavior plus processing of a simulated Tango completion callback. Does not verify a Tango-generated PDF.",
+  "clientRef": "sbl-example", "parameters": {}, "overallTimeoutSeconds": 600,
+  "stimulus": {
+    "channel": "ngc.bpm.incoming", "fixtureRef": "fixtures/policy-page-example.json",
+    "bindings": [
+      {"target": "/id", "source": {"kind": "run", "pointer": "/eventId"}},
+      {"target": "/correlationid", "source": {"kind": "run", "pointer": "/correlationId"}},
+      {"target": "/time", "source": {"kind": "run", "pointer": "/startedAt"}}
+    ]
+  },
+  "checks": [
+    {
+      "id": "letterPrepared", "capability": {"id": "ngc.letter.prepared", "version": "1.0.0"},
+      "inputs": {"targetRole": "OWNER"},
+      "bindings": [
+        {"target": "/correlationId", "source": {"kind": "run", "pointer": "/correlationId"}},
+        {"target": "/sourceEventId", "source": {"kind": "run", "pointer": "/eventId"}}
+      ],
+      "expectationRef": "policy-page-owner",
+      "evidencePolicy": "REAL_REQUIRED", "timeoutSeconds": 120
+    },
+    {
+      "id": "cdsPublished", "capability": {"id": "cds.request.published", "version": "1.0.0"}, "inputs": {},
+      "bindings": [
+        {"target": "/correlationId", "source": {"kind": "run", "pointer": "/correlationId"}},
+        {"target": "/targetEventUniqueId", "source": {"kind": "evidence", "checkId": "letterPrepared", "pointer": "/targetEventUniqueId"}},
+        {"target": "/xmlArtifactUri", "source": {"kind": "evidence", "checkId": "letterPrepared", "pointer": "/xmlArtifactUri"}}
+      ],
+      "expect": {"published": true, "sender": "NGC"}, "evidencePolicy": "REAL_REQUIRED", "timeoutSeconds": 180
+    },
+    {
+      "id": "pdfLifecycle", "capability": {"id": "tango.lifecycle.completed", "version": "1.0.0"}, "inputs": {},
+      "bindings": [
+        {"target": "/correlationId", "source": {"kind": "run", "pointer": "/correlationId"}},
+        {"target": "/requestId", "source": {"kind": "evidence", "checkId": "cdsPublished", "pointer": "/requestId"}},
+        {"target": "/targetEventUniqueId", "source": {"kind": "evidence", "checkId": "cdsPublished", "pointer": "/targetEventUniqueId"}}
+      ],
+      "expect": {"eventType": "pdf.generation.completed", "ngcProcessed": true},
+      "evidencePolicy": "SIMULATED_ALLOWED", "timeoutSeconds": 180
+    }
+  ]
+}

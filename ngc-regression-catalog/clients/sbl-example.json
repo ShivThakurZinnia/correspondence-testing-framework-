@@ -1,0 +1,5 @@
+{
+  "schemaVersion": "1.0", "id": "sbl-example",
+  "description": "Illustrative SBL Policy Page profile. NGC must supply reviewed carrier, plan, fixture and expectation values before UAT use.",
+  "allowedServices": ["ngc", "cds", "tango"]
+}

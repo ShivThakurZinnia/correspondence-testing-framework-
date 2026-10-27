@@ -1,0 +1,10 @@
+{
+  "schemaVersion": "1.0",
+  "catalogVersion": "0.1.0",
+  "services": ["services/ngc.json", "services/cds.json", "services/tango.json"],
+  "clients": ["clients/sbl-example.json"],
+  "expectations": ["expectations/policy-page-owner.json"],
+  "scenarios": ["scenarios/policy-page-ngc-output.json", "scenarios/policy-page-tango-pdf.json", "scenarios/policy-page-simulated-lifecycle.json"],
+  "environments": ["environments/uat-example.json", "environments/controlled-example.json"],
+  "suites": ["suites/uat-pdf.json", "suites/controlled-lifecycle.json", "suites/ngc-output.json"]
+}

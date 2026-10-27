@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object", "additionalProperties": false,
+  "required": ["schemaVersion", "id", "channels", "connectors", "deliveryFence"],
+  "properties": {
+    "schemaVersion": {"const": "1.0"}, "id": {"type": "string", "minLength": 1},
+    "deliveryFence": {"enum": ["ISOLATED_ROUTING", "TEST_DELIVERY_ONLY"]},
+    "channels": {"type": "object", "additionalProperties": {"type": "string", "minLength": 1}},
+    "connectors": {
+      "type": "object", "additionalProperties": {
+        "type": "object", "additionalProperties": false,
+        "required": ["connectorId", "implementationVersion", "serviceContractVersion", "evidenceMode", "configRef"],
+        "properties": {
+          "connectorId": {"type": "string", "minLength": 1},
+          "implementationVersion": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"},
+          "serviceContractVersion": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"},
+          "evidenceMode": {"enum": ["REAL", "SIMULATED"]},
+          "configRef": {"type": "string", "minLength": 1}
+        }
+      }
+    }
+  }
+}

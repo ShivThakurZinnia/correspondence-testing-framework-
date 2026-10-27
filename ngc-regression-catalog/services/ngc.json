@@ -1,0 +1,27 @@
+{
+  "schemaVersion": "1.0", "id": "ngc", "contractVersion": "1.0.0", "connectorId": "ngcConnector",
+  "description": "Observe generated letter XML and independently correlate its target. Proposed contract for the NGC Java implementation.",
+  "capabilities": [{
+    "id": "ngc.letter.prepared", "version": "1.0.0",
+    "description": "Locate the current target, retrieve its XML, and verify the declared business fields and schema.",
+    "supportedEvidence": ["REAL"], "prerequisites": [],
+    "inputSchema": {
+      "type": "object", "additionalProperties": false,
+      "required": ["correlationId", "sourceEventId", "targetRole"],
+      "properties": {"correlationId": {"type": "string", "minLength": 1}, "sourceEventId": {"type": "string", "minLength": 1}, "targetRole": {"type": "string", "minLength": 1}}
+    },
+    "evidenceSchema": {
+      "type": "object", "additionalProperties": false,
+      "required": ["ngcUniqueId", "targetEventUniqueId", "targetRole", "xmlArtifactUri", "schemaValid", "policyNumber"],
+      "properties": {
+        "ngcUniqueId": {"type": "string", "minLength": 1}, "targetEventUniqueId": {"type": "string", "minLength": 1},
+        "targetRole": {"type": "string", "minLength": 1}, "xmlArtifactUri": {"type": "string", "minLength": 1},
+        "schemaValid": {"type": "boolean"}, "policyNumber": {"type": "string"}
+      }
+    },
+    "expectationSchema": {
+      "type": "object", "additionalProperties": false, "required": ["schemaValid", "policyNumber", "targetRole"],
+      "properties": {"schemaValid": {"const": true}, "policyNumber": {"type": "string", "minLength": 1}, "targetRole": {"type": "string", "minLength": 1}}
+    }
+  }]
+}

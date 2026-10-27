@@ -1,0 +1,51 @@
+{
+  "schemaVersion": "1.0", "id": "tango", "contractVersion": "1.0.0", "connectorId": "tangoConnector",
+  "description": "Proposed Tango observation contracts. Live lookup, callback origin and final PDF access must be confirmed by CDS/Tango owners.",
+  "capabilities": [
+    {
+      "id": "tango.pdf.generated", "version": "1.0.0",
+      "description": "Resolve the target's current real Tango job, retrieve the generated PDF and evaluate readability, page count and text. A completion callback alone is insufficient.",
+      "supportedEvidence": ["REAL"],
+      "prerequisites": [{"id": "cds.request.published", "version": "1.0.0"}],
+      "inputSchema": {
+        "type": "object", "additionalProperties": false, "required": ["correlationId", "requestId", "targetEventUniqueId"],
+        "properties": {"correlationId": {"type": "string", "minLength": 1}, "requestId": {"type": "string", "minLength": 1}, "targetEventUniqueId": {"type": "string", "minLength": 1}}
+      },
+      "evidenceSchema": {
+        "type": "object", "additionalProperties": false,
+        "required": ["jobId", "targetEventUniqueId", "generated", "artifactUri", "artifactIdentity", "sha256", "readable", "pageCount", "extractedText"],
+        "properties": {
+          "jobId": {"type": "string", "minLength": 1}, "targetEventUniqueId": {"type": "string", "minLength": 1}, "generated": {"type": "boolean"},
+          "artifactUri": {"type": "string", "minLength": 1}, "artifactIdentity": {"type": "string", "minLength": 1},
+          "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"}, "readable": {"type": "boolean"},
+          "pageCount": {"type": "integer", "minimum": 0}, "extractedText": {"type": "string"}
+        }
+      },
+      "expectationSchema": {
+        "type": "object", "additionalProperties": false, "required": ["generated", "readable", "minPages", "textContains"],
+        "properties": {
+          "generated": {"const": true}, "readable": {"const": true}, "minPages": {"type": "integer", "minimum": 1},
+          "textContains": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string", "minLength": 1}}
+        }
+      }
+    },
+    {
+      "id": "tango.lifecycle.completed", "version": "1.0.0",
+      "description": "Observe the target's PDF completion callback and its processing by NGC. Reports REAL or SIMULATED provenance; does not verify PDF bytes.",
+      "supportedEvidence": ["REAL", "SIMULATED"],
+      "prerequisites": [{"id": "cds.request.published", "version": "1.0.0"}],
+      "inputSchema": {
+        "type": "object", "additionalProperties": false, "required": ["correlationId", "requestId", "targetEventUniqueId"],
+        "properties": {"correlationId": {"type": "string", "minLength": 1}, "requestId": {"type": "string", "minLength": 1}, "targetEventUniqueId": {"type": "string", "minLength": 1}}
+      },
+      "evidenceSchema": {
+        "type": "object", "additionalProperties": false, "required": ["jobId", "targetEventUniqueId", "eventType", "ngcProcessed"],
+        "properties": {"jobId": {"type": "string", "minLength": 1}, "targetEventUniqueId": {"type": "string", "minLength": 1}, "eventType": {"type": "string"}, "ngcProcessed": {"type": "boolean"}}
+      },
+      "expectationSchema": {
+        "type": "object", "additionalProperties": false, "required": ["eventType", "ngcProcessed"],
+        "properties": {"eventType": {"const": "pdf.generation.completed"}, "ngcProcessed": {"const": true}}
+      }
+    }
+  ]
+}

@@ -1,0 +1,5 @@
+{
+  "schemaVersion": "1.0", "id": "policy-page-owner", "revision": 1,
+  "capability": {"id": "ngc.letter.prepared", "version": "1.0.0"},
+  "expect": {"schemaValid": true, "policyNumber": "TEST-POL-1001", "targetRole": "OWNER"}
+}

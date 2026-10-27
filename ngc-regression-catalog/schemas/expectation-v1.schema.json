@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object", "additionalProperties": false,
+  "required": ["schemaVersion", "id", "revision", "capability", "expect"],
+  "properties": {
+    "schemaVersion": {"const": "1.0"}, "id": {"type": "string", "minLength": 1}, "revision": {"type": "integer", "minimum": 1},
+    "capability": {
+      "type": "object", "additionalProperties": false, "required": ["id", "version"],
+      "properties": {"id": {"type": "string", "minLength": 1}, "version": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"}}
+    },
+    "expect": {"type": "object"}
+  }
+}

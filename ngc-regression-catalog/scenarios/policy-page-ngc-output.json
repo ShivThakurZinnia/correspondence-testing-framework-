@@ -1,0 +1,23 @@
+{
+  "schemaVersion": "1.0", "id": "policy-page-ngc-output", "revision": 1,
+  "description": "Verify NGC XML only. The controlled deployment must fence downstream delivery even though no Tango check is selected.",
+  "clientRef": "sbl-example", "parameters": {}, "overallTimeoutSeconds": 180,
+  "stimulus": {
+    "channel": "ngc.bpm.incoming", "fixtureRef": "fixtures/policy-page-example.json",
+    "bindings": [
+      {"target": "/id", "source": {"kind": "run", "pointer": "/eventId"}},
+      {"target": "/correlationid", "source": {"kind": "run", "pointer": "/correlationId"}},
+      {"target": "/time", "source": {"kind": "run", "pointer": "/startedAt"}}
+    ]
+  },
+  "checks": [{
+    "id": "letterPrepared", "capability": {"id": "ngc.letter.prepared", "version": "1.0.0"},
+    "inputs": {"targetRole": "OWNER"},
+    "bindings": [
+      {"target": "/correlationId", "source": {"kind": "run", "pointer": "/correlationId"}},
+      {"target": "/sourceEventId", "source": {"kind": "run", "pointer": "/eventId"}}
+    ],
+    "expectationRef": "policy-page-owner",
+    "evidencePolicy": "REAL_REQUIRED", "timeoutSeconds": 120
+  }]
+}

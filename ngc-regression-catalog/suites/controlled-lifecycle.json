@@ -1,0 +1,5 @@
+{
+  "schemaVersion": "1.0", "id": "controlled-lifecycle", "environmentRef": "controlled-example",
+  "scenarioRefs": ["policy-page-simulated-lifecycle"], "requiredClients": ["sbl-example"],
+  "requiredCapabilities": [{"id": "tango.lifecycle.completed", "version": "1.0.0", "evidenceMode": "SIMULATED"}]
+}

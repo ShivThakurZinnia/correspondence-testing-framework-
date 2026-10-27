@@ -1,0 +1,5 @@
+{
+  "schemaVersion": "1.0", "id": "uat-pdf", "environmentRef": "uat-example",
+  "scenarioRefs": ["policy-page-tango-pdf"], "requiredClients": ["sbl-example"],
+  "requiredCapabilities": [{"id": "tango.pdf.generated", "version": "1.0.0", "evidenceMode": "REAL"}]
+}

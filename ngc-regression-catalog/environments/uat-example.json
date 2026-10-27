@@ -1,0 +1,9 @@
+{
+  "schemaVersion": "1.0", "id": "uat-example", "deliveryFence": "TEST_DELIVERY_ONLY",
+  "channels": {"ngc.bpm.incoming": "REPLACE_WITH_APPROVED_UAT_TOPIC"},
+  "connectors": {
+    "ngc": {"connectorId": "ngcConnector", "implementationVersion": "0.1.0", "serviceContractVersion": "1.0.0", "evidenceMode": "REAL", "configRef": "deployment://ngc-uat-example"},
+    "cds": {"connectorId": "cdsConnector", "implementationVersion": "0.1.0", "serviceContractVersion": "1.0.0", "evidenceMode": "REAL", "configRef": "deployment://cds-uat-example"},
+    "tango": {"connectorId": "tangoConnector", "implementationVersion": "0.1.0", "serviceContractVersion": "1.0.0", "evidenceMode": "REAL", "configRef": "deployment://tango-uat-example"}
+  }
+}

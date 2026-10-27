@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object", "additionalProperties": false,
+  "required": ["schemaVersion", "id", "revision", "description", "clientRef", "parameters", "stimulus", "checks", "overallTimeoutSeconds"],
+  "properties": {
+    "schemaVersion": {"const": "1.0"},
+    "id": {"type": "string", "pattern": "^[a-z][a-z0-9-]*$"},
+    "revision": {"type": "integer", "minimum": 1},
+    "description": {"type": "string", "minLength": 1},
+    "clientRef": {"type": "string", "minLength": 1},
+    "parameters": {"type": "object"},
+    "overallTimeoutSeconds": {"type": "integer", "minimum": 1, "maximum": 3600},
+    "stimulus": {
+      "type": "object", "additionalProperties": false,
+      "required": ["channel", "fixtureRef", "bindings"],
+      "properties": {
+        "channel": {"type": "string", "minLength": 1},
+        "fixtureRef": {"type": "string", "minLength": 1},
+        "bindings": {"type": "array", "items": {"$ref": "#/$defs/binding"}}
+      }
+    },
+    "checks": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/check"}}
+  },
+  "$defs": {
+    "source": {
+      "type": "object", "additionalProperties": false, "required": ["kind", "pointer"],
+      "properties": {
+        "kind": {"enum": ["run", "parameters", "evidence"]},
+        "checkId": {"type": "string", "minLength": 1},
+        "pointer": {"type": "string", "pattern": "^/"}
+      },
+      "allOf": [{"if": {"properties": {"kind": {"const": "evidence"}}}, "then": {"required": ["checkId"]}, "else": {"not": {"required": ["checkId"]}}}]
+    },
+    "binding": {
+      "type": "object", "additionalProperties": false, "required": ["target", "source"],
+      "properties": {
+        "target": {"type": "string", "pattern": "^/[A-Za-z][A-Za-z0-9]*$"},
+        "source": {"$ref": "#/$defs/source"}
+      }
+    },
+    "check": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "capability", "inputs", "bindings", "evidencePolicy", "timeoutSeconds"],
+      "oneOf": [{"required": ["expect"], "not": {"required": ["expectationRef"]}}, {"required": ["expectationRef"], "not": {"required": ["expect"]}}],
+      "properties": {
+        "id": {"type": "string", "pattern": "^[a-z][a-zA-Z0-9]*$"},
+        "capability": {
+          "type": "object", "additionalProperties": false, "required": ["id", "version"],
+          "properties": {"id": {"type": "string", "minLength": 1}, "version": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"}}
+        },
+        "inputs": {"type": "object"},
+        "bindings": {"type": "array", "items": {"$ref": "#/$defs/binding"}},
+        "expect": {"type": "object"},
+        "expectationRef": {"type": "string", "minLength": 1},
+        "evidencePolicy": {"enum": ["REAL_REQUIRED", "SIMULATED_ALLOWED"]},
+        "timeoutSeconds": {"type": "integer", "minimum": 1, "maximum": 3600}
+      }
+    }
+  }
+}
