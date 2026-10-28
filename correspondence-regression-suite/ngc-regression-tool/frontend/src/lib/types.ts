@@ -321,6 +321,27 @@ export interface HealthReport {
   new_event_types: { carrier: string; event_type: string; first_seen: string }[];
 }
 
+export interface DatabaseAccess {
+  checked: boolean;
+  read_only: boolean;
+  write_actions: string[];
+  note: string | null;
+}
+
+export interface DatabaseCollection {
+  name: string;
+  exists: boolean;
+  estimated_count: number | null;
+  indexes: string[][];
+  missing: { keys: string[]; reason: string }[];
+  error: string | null;
+}
+
+export interface DatabaseResponse {
+  environment: string;
+  database: { access: DatabaseAccess; collections: DatabaseCollection[]; missing_total: number };
+}
+
 export interface HealthResponse {
   environment: string;
   report: HealthReport;

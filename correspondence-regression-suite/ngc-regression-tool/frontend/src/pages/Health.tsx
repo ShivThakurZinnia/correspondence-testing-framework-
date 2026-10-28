@@ -2,9 +2,9 @@ import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { Sparkline } from '../components/Sparkline';
 import { Card, Empty, ErrorNote, PageHeader } from '../components/ui';
-import { api } from '../lib/api';
+import { api, ApiError } from '../lib/api';
 import { formatDateTime, formatDuration, timeAgo } from '../lib/format';
-import type { HealthResponse, HistoryPoint, Level } from '../lib/types';
+import type { DatabaseResponse, HealthResponse, HistoryPoint, Level } from '../lib/types';
 
 const WINDOWS = [
   { label: 'Last 24 hours', hours: 24 },
@@ -45,6 +45,54 @@ function Metric({ title, level, value, detail, metric }: { title: string; level:
       <div className="metric-detail muted">{detail}</div>
       {metric && <Sparkline points={history.data} bad={level === 'bad'} />}
     </article>
+  );
+}
+
+function DatabaseCard() {
+  const { data, error } = useQuery({
+    queryKey: ['health-indexes'],
+    queryFn: () => api<DatabaseResponse>('/api/health/indexes'),
+    staleTime: 300000,
+    retry: false,
+  });
+  if (error instanceof ApiError && error.status === 503) return null;
+  if (error) return <Card title="Database access and indexes"><ErrorNote error={error} /></Card>;
+  if (!data) return null;
+  const { access, collections, missing_total: missingTotal } = data.database;
+  const missing = collections.filter((c) => c.exists && c.missing.length > 0);
+  const failed = collections.filter((c) => c.error);
+  return (
+    <Card title="Database access and indexes">
+      <ul className="issues">
+        {access.checked && access.read_only && <li className="issue lvl-issue-info"><Dot level="ok" /> The database user is read-only.</li>}
+        {access.checked && !access.read_only && (
+          <li className="issue lvl-issue-bad"><Dot level="bad" /> The database user can write ({access.write_actions.join(', ')}). Use a read-only user for this tool.</li>
+        )}
+        {!access.checked && <li className="issue lvl-issue-warn"><Dot level="warn" /> {access.note ?? 'Could not check what the database user may do.'}</li>}
+        {missingTotal === 0 && failed.length === 0 && <li className="issue lvl-issue-info"><Dot level="ok" /> Every index the tool's queries rely on is present.</li>}
+        {missingTotal > 0 && (
+          <li className="issue lvl-issue-warn"><Dot level="warn" /> {missingTotal} index{missingTotal === 1 ? ' is' : 'es are'} missing, so some queries scan whole collections. The tool never creates indexes; ask the NGC team.</li>
+        )}
+        {failed.map((c) => <li key={c.name} className="issue lvl-issue-warn"><Dot level="warn" /> Could not read the indexes of <span className="mono">{c.name}</span> ({c.error}).</li>)}
+      </ul>
+      {missing.length > 0 && (
+        <table className="table">
+          <thead><tr><th>Collection</th><th>Documents</th><th>Missing index on</th><th>Needed for</th></tr></thead>
+          <tbody>
+            {missing.flatMap((c) =>
+              c.missing.map((m) => (
+                <tr key={`${c.name}|${m.keys.join(',')}`}>
+                  <td className="mono">{c.name}</td>
+                  <td>{c.estimated_count == null ? '–' : c.estimated_count.toLocaleString('en-US')}</td>
+                  <td className="mono">{m.keys.join(', ')}</td>
+                  <td className="muted">{m.reason}</td>
+                </tr>
+              )),
+            )}
+          </tbody>
+        </table>
+      )}
+    </Card>
   );
 }
 
@@ -231,6 +279,7 @@ export function Health() {
           </div>
         </>
       )}
+      <DatabaseCard />
     </>
   );
 }
