@@ -1,0 +1,38 @@
+{
+  "id": "000000000000000000000000",
+  "correlationid": "00000000-0000-4000-8000-000000000001",
+  "source": "zahara",
+  "origin": "DAML",
+  "specversion": "1",
+  "type": "policy.anniversary.completed",
+  "datacontenttype": "application/json",
+  "carrier": "GILI",
+  "time": "2026-01-01T00:00:00.000Z",
+  "data": "{\"policyNumber\":\"REPLACE_ME\",\"transactionId\":\"1\",\"planCode\":\"GCFIA901\",\"status\":\"Completed\",\"version\":\"1\",\"previousVersion\":\"0\",\"policyStatus\":\"ACTIVE\",\"reverseInitiator\":false}",
+  "identifiers": [
+    {
+      "identifier": "parentId",
+      "value": null
+    },
+    {
+      "identifier": "transactionId",
+      "value": "1"
+    },
+    {
+      "identifier": "policyReferenceId",
+      "value": "REPLACE_ME_POLICY_REFERENCE_ID"
+    },
+    {
+      "identifier": "policyNumber",
+      "value": "REPLACE_ME"
+    },
+    {
+      "identifier": "originalTransactionId",
+      "value": null
+    },
+    {
+      "identifier": "planCode",
+      "value": "GCFIA901"
+    }
+  ]
+}

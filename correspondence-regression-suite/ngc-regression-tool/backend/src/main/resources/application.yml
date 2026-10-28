@@ -1,0 +1,50 @@
+spring:
+  autoconfigure:
+    exclude: org.springframework.boot.autoconfigure.mongo.MongoAutoConfiguration
+  datasource:
+    url: jdbc:h2:file:${H2_FILE_PATH:./data/ngc-regression};AUTO_SERVER=TRUE
+    username: sa
+    password: ""
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+
+server:
+  port: 8085
+
+ngc:
+  # The environment the Mongo/Kafka/S3 settings below belong to; other environments are refused
+  environment: ${NGC_ENVIRONMENT:}
+  mongo:
+    # Read-only access to the NGC database; collectors are disabled when no URI is set
+    uri: ${MONGODB_URI:}
+    database: ${MONGODB_DATABASE:}
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVER:}
+    key: ${KAFKA_KEY:}
+    secret: ${KAFKA_SECRET:}
+  s3:
+    # Bucket holding NGC-generated XML (read-only). Credentials come from the AWS default chain (AWS_PROFILE / SSO / env).
+    bucket: ${S3_BUCKET_NAME:}
+    region: ${AWS_REGION:us-east-1}
+
+regression:
+  poll-interval-ms: 5000
+  # Safety guard: only these carriers may be injected into a live environment
+  allowed-carriers: GILI
+  run:
+    large-run-threshold: 100    # manual runs above this must confirm the event count (a prompt, not a limit)
+    max-in-flight: 25           # unfinished events per run
+    global-max-in-flight: 50    # unfinished events across all runs together
+    events-per-second: 5        # publish rate
+    publish-failure-limit: 5    # consecutive publish failures before the run aborts
+  retention:
+    detail-days: 30             # observations, assertions, stored XML and injected payloads
+    summary-days: 365           # runs and their per-event results
+  health:
+    snapshot-ms: 900000
+    stuck-minutes: 30
+  auth:
+    # Single fixed account for now (HTTP Basic). The password has no default: the service refuses to start without it.
+    user: ${REGRESSION_USER:admin}
+    password: ${REGRESSION_PASSWORD:}

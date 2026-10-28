@@ -1,0 +1,37 @@
+# secrets and local config (only .env.example is committed)
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.jks
+*.p12
+
+# Java / Maven
+target/
+*.class
+*.jar
+*.war
+*.log
+hs_err_pid*
+
+# Node / React / Vite
+node_modules/
+frontend/dist/
+*.tsbuildinfo
+npm-debug.log*
+coverage/
+
+# generated UI bundle (built by `npm run build` in frontend/)
+backend/src/main/resources/static/
+
+# local app store (H2) and run artifacts
+data/
+*.mv.db
+*.trace.db
+
+# IDE / OS
+.idea/
+*.iml
+.vscode/
+.DS_Store
