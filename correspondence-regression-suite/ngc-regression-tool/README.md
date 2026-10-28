@@ -32,3 +32,7 @@ java -jar ngc-regression.jar runs --env dev
 ## Safety
 QA really sends print and email. Only carriers in `regression.allowed-carriers` (default `GILI`) can be injected; use synthetic
 policies and recipients only.
+
+## Mongo limits
+
+Every query to the NGC database carries a `maxTime`, and the client has connect, socket and server-selection timeouts and reads from a secondary when one is available. Tune them under `ngc.mongo.*` in `application.yml` (`connect-timeout-ms`, `socket-timeout-ms`, `server-selection-timeout-ms`, `max-time-ms`, `read-preference`). Keep `socket-timeout-ms` above `max-time-ms` so the server aborts a slow query before the socket does. The Health page shows whether the user is read-only and which indexes are missing.
