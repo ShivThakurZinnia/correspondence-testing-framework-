@@ -7,6 +7,9 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.zinnia.regression.health.DatabaseReport.Access;
+import com.zinnia.regression.health.DatabaseReport.CollectionIndexes;
+import com.zinnia.regression.health.DatabaseReport.MissingIndex;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.OffsetDateTime;
@@ -31,6 +34,7 @@ class HealthControllerTest {
     @Autowired HealthSnapshotRecorder recorder;
     @Autowired HealthService service;
     @MockitoBean HealthSource source;
+    @MockitoBean MongoDiagnostics diagnostics;
 
     void quiet() {
         when(source.stuck(any(), any(), any())).thenReturn(new HealthSource.StuckData(2, Instant.now().minus(Duration.ofMinutes(50)), 0, 0, 0, 0));
@@ -97,5 +101,30 @@ class HealthControllerTest {
         mvc.perform(get("/api/health?windowHours=11")).andExpect(status().isOk());
 
         org.mockito.Mockito.verify(source, org.mockito.Mockito.times(1)).lastIncoming();
+    }
+
+    @Test
+    void indexesEndpointReportsAccessAndMissingIndexes() throws Exception {
+        when(diagnostics.report()).thenReturn(new DatabaseReport(new Access(true, true, List.of(), null),
+                List.of(new CollectionIndexes("incoming_events", true, 1200000L, List.of(List.of("_id"), List.of("uniqueId")),
+                        List.of(new MissingIndex(List.of("createdAt"), "time-window health and search queries")), null)), 1));
+
+        mvc.perform(get("/api/health/indexes")).andExpect(status().isOk())
+                .andExpect(jsonPath("$.environment").value("dev"))
+                .andExpect(jsonPath("$.database.access.read_only").value(true))
+                .andExpect(jsonPath("$.database.missing_total").value(1))
+                .andExpect(jsonPath("$.database.collections[0].name").value("incoming_events"))
+                .andExpect(jsonPath("$.database.collections[0].estimated_count").value(1200000))
+                .andExpect(jsonPath("$.database.collections[0].missing[0].keys[0]").value("createdAt"));
+    }
+
+    @Test
+    void aSlowDatabaseGetsAnIndexHintNotAStackTrace() throws Exception {
+        quiet();
+        when(source.retryStatuses()).thenThrow(new com.mongodb.MongoExecutionTimeoutException(50, "operation exceeded time limit"));
+
+        mvc.perform(get("/api/health?windowHours=6")).andExpect(status().isBadGateway())
+                .andExpect(jsonPath("$.errors[0]").value(
+                        "The NGC database took too long to answer; a missing index is the usual cause (see /api/health/indexes)"));
     }
 }

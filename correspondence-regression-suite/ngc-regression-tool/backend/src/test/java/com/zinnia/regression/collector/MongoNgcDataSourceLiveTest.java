@@ -27,7 +27,7 @@ class MongoNgcDataSourceLiveTest {
             assertThat(recent).as("a recent GILI policy page in the database").isNotNull();
             String correlationId = recent.getString("correlationId");
 
-            MongoNgcDataSource source = new MongoNgcDataSource(client, database, new ObservationMapper(new ObjectMapper()));
+            MongoNgcDataSource source = new MongoNgcDataSource(client, database, new ObservationMapper(new ObjectMapper()), MongoLimits.DEFAULT);
             NgcView view = source.collect(correlationId);
 
             System.out.println("LIVE correlation found=" + source.incomingEventExists(correlationId)

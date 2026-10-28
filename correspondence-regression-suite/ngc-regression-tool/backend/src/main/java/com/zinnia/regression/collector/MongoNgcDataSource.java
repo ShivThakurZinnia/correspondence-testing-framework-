@@ -30,11 +30,13 @@ public class MongoNgcDataSource implements NgcDataSource {
 
     private final MongoDatabase db;
     private final ObservationMapper mapper;
+    private final MongoLimits limits;
 
     public MongoNgcDataSource(MongoClient client, @Value("${ngc.mongo.database}") String database,
-                              ObservationMapper mapper) {
+                              ObservationMapper mapper, MongoLimits limits) {
         this.db = client.getDatabase(database);
         this.mapper = mapper;
+        this.limits = limits;
     }
 
     @Override
@@ -51,7 +53,7 @@ public class MongoNgcDataSource implements NgcDataSource {
         for (int from = 0; from < ids.size(); from += CHUNK) {
             List<String> chunk = ids.subList(from, Math.min(ids.size(), from + CHUNK));
             for (String collection : COLLECTIONS) {
-                db.getCollection(collection).find(in("correlationId", chunk)).forEach(d -> {
+                limits.apply(db.getCollection(collection).find(in("correlationId", chunk))).forEach(d -> {
                     Map<String, List<Document>> forId = byId.get(String.valueOf(d.get("correlationId")));
                     if (forId != null) {
                         forId.computeIfAbsent(collection, c -> new ArrayList<>()).add(d);
@@ -89,6 +91,6 @@ public class MongoNgcDataSource implements NgcDataSource {
 
     @Override
     public boolean incomingEventExists(String correlationId) {
-        return db.getCollection("incoming_events").countDocuments(eq("correlationId", correlationId)) > 0;
+        return limits.count(db.getCollection("incoming_events"), eq("correlationId", correlationId)) > 0;
     }
 }
