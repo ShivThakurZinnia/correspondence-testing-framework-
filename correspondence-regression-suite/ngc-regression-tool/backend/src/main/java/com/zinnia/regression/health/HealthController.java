@@ -79,7 +79,7 @@ public class HealthController {
         }
     }
 
-    private static String readError(RuntimeException e) {
+    public static String readError(RuntimeException e) {
         return MongoLimits.isTimeout(e)
                 ? "The NGC database took too long to answer; a missing index is the usual cause (see /api/health/indexes)"
                 : "Could not read the NGC database: " + e.getMessage();

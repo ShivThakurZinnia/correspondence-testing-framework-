@@ -31,7 +31,7 @@ When an event fails, look back at past executions and see one event's full histo
 | Phase | Deliverable | Status |
 |---|---|---|
 | 1 | Mongo hardening: timeouts and `maxTime`, read-only privilege check, index inventory (`GET /api/health/indexes`, Health page card) | Done |
-| 2 | Event Search (correlationId, uniqueId, policyNumber, carrier, eventType, bounded window) and History page: joined timeline, failure reasons, "history lost" markers, copyable fact sheet | |
+| 2 | Event Search (correlationId, uniqueId, policyNumber, carrier, eventType, bounded window) and History page: joined timeline, failure reasons, "history lost" markers, copyable fact sheet | Done, awaiting review |
 | 3 | Health scoped by carrier and event type, stage latency p50/p90, snapshot rollups | |
 | 4 | Tool-owned event ledger in H2 to keep statuses NGC overwrites, plus replay/retry lineage view | |
 
@@ -42,6 +42,22 @@ When an event fails, look back at past executions and see one event's full histo
 - **Startup check:** a warning is logged if the Mongo user can write.
 - **UI:** new "Database access and indexes" card on the Health page.
 - **Tests:** 14 new backend tests (193 total) and 4 new frontend tests (52 total), plus a read-only live test.
+
+### Phase 2 — changes made
+- **Browse tree:** Forensics page with a window selector and a carrier typeahead. It drills carrier, then event type, then outcome (technical, business, stuck, OK), then the event list, then the history. The selection lives in the URL.
+- **Jump to:** exact `correlationId`, `uniqueId` or policy number, with no time window.
+- **Counts:** `GET /api/forensics/tree` builds carrier and event-type counts from one windowed aggregate, plus dead letters and invalid requests per carrier.
+- **Search:** `GET /api/forensics/events` filters by carrier, event type, outcome, window and exact ids, 50 per page with "load more". It also lists events rejected before processing.
+- **History:** `GET /api/forensics/events/{correlationId}` joins 11 collections into one timeline with stage states, retries and "history lost" markers. A correlation id with several attempts shows the latest attempt by default, with a switcher and an "all attempts" option.
+- **Safety:** allow-listed projections only, never message bodies. Error text is sanitized (stack frames dropped, emails, SSNs, card numbers and personal key/values masked). Rows are capped at 200 per collection and 500 timeline entries, and a marker says when that happens.
+- **UI:** "Copy fact sheet" copies the ids, stages, retries and timeline as plain text.
+- **Tests:** 28 new backend tests and 13 new frontend tests, plus a read-only live test. A scratch instance on port 8086 was checked end to end.
+
+### Phase 2 findings (dev)
+- One correlation id had 200 or more processing attempts (about 1,700 timeline rows), so the history is scoped to one attempt by default.
+- Callbacks (`internal_events`) cannot be tied to one attempt, so they show for every attempt, and a marker says so.
+- Mixed business-and-technical failures count in both outcome buckets.
+- Searches by `correlationId`, `policyNumber` and `createdAt` still scan `incoming_events` until the index request from Phase 1 is done.
 
 ## Phase 1 findings (dev)
 - The Mongo user can write (`insert`, `update`, `remove`, `createIndex`, `dropCollection`, ...), so the tool is read-only only by its own code.
