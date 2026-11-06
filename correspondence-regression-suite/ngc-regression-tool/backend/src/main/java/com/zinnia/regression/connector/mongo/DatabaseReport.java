@@ -1,4 +1,4 @@
-package com.zinnia.regression.health;
+package com.zinnia.regression.connector.mongo;
 
 import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;

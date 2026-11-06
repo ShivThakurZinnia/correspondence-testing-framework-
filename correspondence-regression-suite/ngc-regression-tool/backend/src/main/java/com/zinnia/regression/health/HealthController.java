@@ -1,8 +1,9 @@
 package com.zinnia.regression.health;
 
-import com.zinnia.regression.collector.MongoLimits;
 import com.zinnia.regression.common.Rows;
 import com.zinnia.regression.config.WiredEnvironment;
+import com.zinnia.regression.connector.mongo.MongoDiagnostics;
+import com.zinnia.regression.connector.mongo.MongoLimits;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;

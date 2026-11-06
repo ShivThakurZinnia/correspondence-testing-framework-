@@ -9,8 +9,8 @@ import com.zinnia.regression.collector.NgcView;
 import com.zinnia.regression.collector.NgcView.IncomingEventView;
 import com.zinnia.regression.collector.NgcView.TargetView;
 import com.zinnia.regression.collector.Observation;
+import com.zinnia.regression.connector.kafka.EventPublisher;
 import com.zinnia.regression.payload.PayloadTest;
-import com.zinnia.regression.publisher.EventPublisher;
 import com.zinnia.regression.testcase.TestCaseRequest;
 import com.zinnia.regression.testcase.TestCaseService;
 import com.zinnia.regression.testcase.ValidationException;
@@ -50,16 +50,17 @@ class RunExecutorTest {
         }
 
         @Bean
-        com.zinnia.regression.xml.XmlStore xmlStore() {
-            return new com.zinnia.regression.xml.XmlStore() {
+        com.zinnia.regression.connector.s3.ObjectStore xmlStore() {
+            return new com.zinnia.regression.connector.s3.ObjectStore() {
                 @Override
                 public String defaultBucket() {
                     return "b";
                 }
 
                 @Override
-                public java.util.Optional<String> read(String bucket, String key) {
-                    return java.util.Optional.ofNullable(S3.get(bucket + "/" + key));
+                public java.util.Optional<byte[]> readBytes(String bucket, String key) {
+                    return java.util.Optional.ofNullable(S3.get(bucket + "/" + key))
+                            .map(o -> o.getBytes(java.nio.charset.StandardCharsets.UTF_8));
                 }
             };
         }

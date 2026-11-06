@@ -1,4 +1,4 @@
-package com.zinnia.regression.collector;
+package com.zinnia.regression.connector.mongo;
 
 import com.mongodb.ConnectionString;
 import com.mongodb.MongoClientSettings;

@@ -8,12 +8,12 @@ import com.zinnia.regression.assertion.AssertionOutcome;
 import com.zinnia.regression.collector.NgcDataSource;
 import com.zinnia.regression.collector.NgcView;
 import com.zinnia.regression.collector.ObservationRecorder;
+import com.zinnia.regression.connector.kafka.EventPublisher;
+import com.zinnia.regression.connector.s3.ObjectStore;
 import com.zinnia.regression.payload.CorrelationIdRewriter;
 import com.zinnia.regression.payload.EventPayloadValidator;
 import com.zinnia.regression.payload.PayloadInfo;
 import com.zinnia.regression.payload.PlanCodeRewriter;
-import com.zinnia.regression.publisher.EventPublisher;
-import com.zinnia.regression.xml.XmlStore;
 import com.zinnia.regression.xml.XmlVerifier;
 import java.time.Duration;
 import java.time.Instant;
@@ -67,7 +67,7 @@ public class RunExecutor {
     private final ObservationRecorder recorder;
     private final ObjectProvider<NgcDataSource> ngc;
     private final ObjectProvider<EventPublisher> publisher;
-    private final ObjectProvider<XmlStore> xmlStore;
+    private final ObjectProvider<ObjectStore> xmlStore;
     private final XmlVerifier xmlVerifier;
     private final DispatchGate gate;
     private final ObjectMapper json;
@@ -84,7 +84,7 @@ public class RunExecutor {
     public RunExecutor(JdbcClient jdbc, ArtifactRepository artifacts, CorrelationIdRewriter rewriter, PlanCodeRewriter planRewriter,
                        EventPayloadValidator payloads, AssertionEngine assertions, ObservationRecorder recorder,
                        ObjectProvider<NgcDataSource> ngc, ObjectProvider<EventPublisher> publisher,
-                       ObjectProvider<XmlStore> xmlStore, XmlVerifier xmlVerifier, DispatchGate gate, ObjectMapper json,
+                       ObjectProvider<ObjectStore> xmlStore, XmlVerifier xmlVerifier, DispatchGate gate, ObjectMapper json,
                        @Value("${regression.poll-interval-ms:5000}") long pollIntervalMs,
                        @Value("${regression.run.max-in-flight:25}") int defaultMaxInFlight,
                        @Value("${regression.run.events-per-second:5}") double defaultEventsPerSecond,
@@ -442,7 +442,7 @@ public class RunExecutor {
     /** Fetches the generated XML from S3, checks it, and keeps a copy with the run for later inspection. */
     private List<AssertionOutcome> verifyXml(long runCaseId, String correlationId, JsonNode xmlExpected, NgcView view,
                                              Long goldenArtifact) {
-        XmlStore store = xmlStore.getIfAvailable();
+        ObjectStore store = xmlStore.getIfAvailable();
         if (store == null) {
             return List.of(new AssertionOutcome("XML", "xml", "XML checks", "not evaluated", false,
                     "S3 is not configured (S3_BUCKET_NAME and AWS credentials)"));

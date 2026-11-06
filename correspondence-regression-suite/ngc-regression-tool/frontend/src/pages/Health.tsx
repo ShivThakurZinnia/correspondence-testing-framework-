@@ -4,7 +4,7 @@ import { Sparkline } from '../components/Sparkline';
 import { Card, Empty, ErrorNote, PageHeader } from '../components/ui';
 import { api, ApiError } from '../lib/api';
 import { formatDateTime, formatDuration, timeAgo } from '../lib/format';
-import type { DatabaseResponse, HealthResponse, HistoryPoint, Level } from '../lib/types';
+import type { ConnectorRow, ConnectorsResponse, DatabaseResponse, HealthResponse, HistoryPoint, Level } from '../lib/types';
 
 const WINDOWS = [
   { label: 'Last 24 hours', hours: 24 },
@@ -45,6 +45,31 @@ function Metric({ title, level, value, detail, metric }: { title: string; level:
       <div className="metric-detail muted">{detail}</div>
       {metric && <Sparkline points={history.data} bad={level === 'bad'} />}
     </article>
+  );
+}
+
+const CONNECTOR_NAME: Record<string, string> = { mongo: 'MongoDB', s3: 'S3', eds: 'EDS documents', kafka: 'Kafka' };
+const CONNECTOR_LEVEL: Record<ConnectorRow['state'], Level> = { ok: 'ok', failed: 'bad', not_probed: 'info', not_configured: 'info' };
+
+function ConnectionsCard() {
+  const { data, error } = useQuery({
+    queryKey: ['connectors'],
+    queryFn: () => api<ConnectorsResponse>('/api/connectors'),
+    staleTime: 60000,
+    retry: false,
+  });
+  if (error) return <Card title="Connections"><ErrorNote error={error} /></Card>;
+  if (!data) return null;
+  return (
+    <Card title="Connections">
+      <ul className="issues">
+        {data.connectors.map((c) => (
+          <li key={c.id} className={`issue lvl-issue-${CONNECTOR_LEVEL[c.state] === 'bad' ? 'bad' : 'info'}`}>
+            <Dot level={CONNECTOR_LEVEL[c.state]} /> <strong>{CONNECTOR_NAME[c.id] ?? c.id}</strong> <span className="muted">{c.detail}</span>
+          </li>
+        ))}
+      </ul>
+    </Card>
   );
 }
 
@@ -279,6 +304,7 @@ export function Health() {
           </div>
         </>
       )}
+      <ConnectionsCard />
       <DatabaseCard />
     </>
   );

@@ -342,6 +342,17 @@ export interface DatabaseResponse {
   database: { access: DatabaseAccess; collections: DatabaseCollection[]; missing_total: number };
 }
 
+export interface ConnectorRow {
+  id: string;
+  state: 'ok' | 'failed' | 'not_probed' | 'not_configured';
+  detail: string;
+}
+
+export interface ConnectorsResponse {
+  environment: string;
+  connectors: ConnectorRow[];
+}
+
 export interface HealthResponse {
   environment: string;
   report: HealthReport;

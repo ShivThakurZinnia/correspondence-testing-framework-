@@ -4,7 +4,7 @@ import com.mongodb.client.AggregateIterable;
 import com.mongodb.client.FindIterable;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoDatabase;
-import com.zinnia.regression.collector.MongoLimits;
+import com.zinnia.regression.connector.mongo.MongoLimits;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;

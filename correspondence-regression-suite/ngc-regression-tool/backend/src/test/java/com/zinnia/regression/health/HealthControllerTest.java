@@ -7,9 +7,11 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import com.zinnia.regression.health.DatabaseReport.Access;
-import com.zinnia.regression.health.DatabaseReport.CollectionIndexes;
-import com.zinnia.regression.health.DatabaseReport.MissingIndex;
+import com.zinnia.regression.connector.mongo.DatabaseReport;
+import com.zinnia.regression.connector.mongo.DatabaseReport.Access;
+import com.zinnia.regression.connector.mongo.DatabaseReport.CollectionIndexes;
+import com.zinnia.regression.connector.mongo.DatabaseReport.MissingIndex;
+import com.zinnia.regression.connector.mongo.MongoDiagnostics;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.OffsetDateTime;

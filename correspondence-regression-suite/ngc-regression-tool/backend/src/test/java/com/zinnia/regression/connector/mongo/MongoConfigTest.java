@@ -1,4 +1,4 @@
-package com.zinnia.regression.collector;
+package com.zinnia.regression.connector.mongo;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;

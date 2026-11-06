@@ -1,11 +1,10 @@
-package com.zinnia.regression.health;
+package com.zinnia.regression.connector.mongo;
 
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoDatabase;
-import com.zinnia.regression.collector.MongoLimits;
-import com.zinnia.regression.health.DatabaseReport.Access;
-import com.zinnia.regression.health.DatabaseReport.CollectionIndexes;
-import com.zinnia.regression.health.DatabaseReport.MissingIndex;
+import com.zinnia.regression.connector.mongo.DatabaseReport.Access;
+import com.zinnia.regression.connector.mongo.DatabaseReport.CollectionIndexes;
+import com.zinnia.regression.connector.mongo.DatabaseReport.MissingIndex;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;

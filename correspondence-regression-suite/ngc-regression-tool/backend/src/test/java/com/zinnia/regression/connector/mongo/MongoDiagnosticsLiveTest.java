@@ -1,10 +1,9 @@
-package com.zinnia.regression.health;
+package com.zinnia.regression.connector.mongo;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoClients;
-import com.zinnia.regression.collector.MongoLimits;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 

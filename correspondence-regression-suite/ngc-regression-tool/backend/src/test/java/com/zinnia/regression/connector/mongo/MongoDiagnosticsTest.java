@@ -1,10 +1,10 @@
-package com.zinnia.regression.health;
+package com.zinnia.regression.connector.mongo;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.zinnia.regression.health.DatabaseReport.Access;
-import com.zinnia.regression.health.DatabaseReport.MissingIndex;
-import com.zinnia.regression.health.MongoDiagnostics.Want;
+import com.zinnia.regression.connector.mongo.DatabaseReport.Access;
+import com.zinnia.regression.connector.mongo.DatabaseReport.MissingIndex;
+import com.zinnia.regression.connector.mongo.MongoDiagnostics.Want;
 import java.util.List;
 import org.bson.Document;
 import org.junit.jupiter.api.Test;

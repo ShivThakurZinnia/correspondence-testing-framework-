@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { DatabaseResponse, HealthReport } from '../lib/types';
+import type { ConnectorsResponse, DatabaseResponse, HealthReport } from '../lib/types';
 import { Health, minutes, pct } from './Health';
 
 const report = (over: Partial<HealthReport> = {}): HealthReport => ({
@@ -44,9 +44,20 @@ const database = (over: Partial<DatabaseResponse['database']> = {}): DatabaseRes
   },
 });
 
+const connectors = (): ConnectorsResponse => ({
+  environment: 'dev',
+  connectors: [
+    { id: 'mongo', state: 'ok', detail: 'Database ngc answers' },
+    { id: 's3', state: 'failed', detail: 'Cannot reach bucket b (SdkClientException)' },
+    { id: 'eds', state: 'not_probed', detail: 'Gateway gw.example configured; reachability is only known when a document is fetched' },
+    { id: 'kafka', state: 'not_configured', detail: 'Not configured on this instance' },
+  ],
+});
+
 function mockApi(r: HealthReport | { status: number; errors: string[] }, db: DatabaseResponse | { status: number; errors: string[] } = database()) {
   vi.stubGlobal('fetch', vi.fn(async (url: string) => {
     if (url.startsWith('/api/health/history')) return new Response('[]', { status: 200 });
+    if (url.startsWith('/api/connectors')) return new Response(JSON.stringify(connectors()), { status: 200 });
     if (url.startsWith('/api/health/indexes')) {
       return 'status' in db ? new Response(JSON.stringify({ errors: db.errors }), { status: db.status }) : new Response(JSON.stringify(db), { status: 200 });
     }
@@ -112,6 +123,20 @@ describe('Health page', () => {
     expect(within(row).getByText('incoming_events')).toBeInTheDocument();
     expect(within(row).getByText('1,200,000')).toBeInTheDocument();
     expect(within(row).getByText('time-window health and search queries')).toBeInTheDocument();
+  });
+
+  it('lists every connector with its state', async () => {
+    mockApi(report());
+    renderPage();
+
+    const mongo = (await screen.findByText('MongoDB')).closest('li')!;
+    expect(within(mongo).getByLabelText('Healthy')).toBeInTheDocument();
+    expect(within(mongo).getByText('Database ngc answers')).toBeInTheDocument();
+    const s3 = screen.getByText('S3').closest('li')!;
+    expect(within(s3).getByLabelText('Problem')).toBeInTheDocument();
+    expect(s3).toHaveClass('lvl-issue-bad');
+    expect(within(screen.getByText('EDS documents').closest('li')!).getByText(/only known when a document is fetched/)).toBeInTheDocument();
+    expect(within(screen.getByText('Kafka').closest('li')!).getByText('Not configured on this instance')).toBeInTheDocument();
   });
 
   it('warns when the database user can write', async () => {

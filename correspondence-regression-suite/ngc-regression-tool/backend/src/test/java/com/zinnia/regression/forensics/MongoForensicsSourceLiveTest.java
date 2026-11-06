@@ -4,7 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoClients;
-import com.zinnia.regression.collector.MongoLimits;
+import com.zinnia.regression.connector.mongo.MongoLimits;
 import com.zinnia.regression.forensics.ForensicsModel.Criteria;
 import com.zinnia.regression.forensics.ForensicsModel.EventSummary;
 import com.zinnia.regression.forensics.ForensicsModel.History;
