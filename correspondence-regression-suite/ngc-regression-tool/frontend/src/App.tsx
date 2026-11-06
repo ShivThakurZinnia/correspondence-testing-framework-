@@ -36,7 +36,7 @@ export function App() {
     <ToastProvider>
     <div className="shell">
       <aside className="sidebar">
-        <div className="brand"><span className="logo" aria-hidden /><span>NGC Regression<small>Regression suite</small></span></div>
+        <div className="brand"><span className="logo" aria-hidden /><span>Corro Regression<small>Regression suite</small></span></div>
         <nav>
           {NAV.map((n) => (
             <NavLink key={n.to} to={n.to} end={n.end} className={({ isActive }) => (isActive ? 'nav on' : 'nav')}>

@@ -1,4 +1,4 @@
-# NGC Regression Tool (NGC-6194 / NGC-6703) — Plan
+# Corro Regression Tool (NGC-6194 / NGC-6703) — Plan
 
 ## Context
 NGC shares orchestration across clients; a change can pass unit tests yet break a client's route, target role, XML, delivery path or status. We need a **black-box regression tool** that injects real Kafka events into live QA NGC and asserts observable outcomes: Mongo state, S3 XML, outgoing CDS message, CDS/Tango callbacks, final statuses.

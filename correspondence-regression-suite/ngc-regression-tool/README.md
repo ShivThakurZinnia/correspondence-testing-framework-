@@ -1,4 +1,4 @@
-# NGC Regression Suite
+# Corro Regression Suite
 
 Black-box regression tool for the nextgen-correspondence-service (NGC): injects real Kafka events, then checks what
 NGC did in MongoDB, S3 and the CDS/Tango callbacks. Plan: `docs/PLAN.md`. Schema: `docs/SCHEMA.md`. API: `docs/API.md`.
