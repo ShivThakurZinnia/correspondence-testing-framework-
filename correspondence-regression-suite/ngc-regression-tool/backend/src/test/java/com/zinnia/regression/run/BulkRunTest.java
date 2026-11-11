@@ -10,7 +10,7 @@ import com.zinnia.regression.collector.NgcDataSource;
 import com.zinnia.regression.collector.NgcView;
 import com.zinnia.regression.collector.NgcView.IncomingEventView;
 import com.zinnia.regression.collector.NgcView.TargetView;
-import com.zinnia.regression.publisher.EventPublisher;
+import com.zinnia.regression.connector.kafka.EventPublisher;
 import com.zinnia.regression.testcase.TestCaseRequest;
 import com.zinnia.regression.testcase.TestCaseService;
 import com.zinnia.regression.testcase.ValidationException;

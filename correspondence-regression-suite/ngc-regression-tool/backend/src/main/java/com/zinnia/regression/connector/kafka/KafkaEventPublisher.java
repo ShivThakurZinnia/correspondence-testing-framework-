@@ -1,5 +1,6 @@
-package com.zinnia.regression.publisher;
+package com.zinnia.regression.connector.kafka;
 
+import com.zinnia.regression.connector.Connector;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 import org.apache.kafka.clients.producer.KafkaProducer;
@@ -14,12 +15,14 @@ import org.springframework.stereotype.Component;
 /** Producer with the durability settings NGC itself uses (acks=all, idempotent); SASL_SSL only when a key is configured. */
 @Component
 @ConditionalOnExpression("!'${ngc.kafka.bootstrap-servers:}'.isEmpty()")
-public class KafkaEventPublisher implements EventPublisher {
+public class KafkaEventPublisher implements EventPublisher, Connector {
 
     private final KafkaProducer<String, String> producer;
+    private final String bootstrap;
 
     public KafkaEventPublisher(@Value("${ngc.kafka.bootstrap-servers}") String bootstrap,
                                @Value("${ngc.kafka.key:}") String key, @Value("${ngc.kafka.secret:}") String secret) {
+        this.bootstrap = bootstrap;
         this.producer = new KafkaProducer<>(producerProperties(bootstrap, key, secret));
     }
 
@@ -42,6 +45,16 @@ public class KafkaEventPublisher implements EventPublisher {
                     + key + "\" password=\"" + secret + "\";");
         }
         return p;
+    }
+
+    @Override
+    public String id() {
+        return "kafka";
+    }
+
+    @Override
+    public Status check() {
+        return new Status(State.NOT_PROBED, "Producer configured for " + bootstrap + "; a broker call is made only when a run publishes");
     }
 
     @Override

@@ -6,6 +6,8 @@ import com.zinnia.regression.collector.NgcView;
 import com.zinnia.regression.collector.NgcView.CdsPayload;
 import com.zinnia.regression.collector.NgcView.IncomingEventView;
 import com.zinnia.regression.collector.NgcView.TargetView;
+import com.zinnia.regression.connector.s3.ObjectStore;
+import com.zinnia.regression.connector.s3.S3Location;
 import java.io.StringReader;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -33,7 +35,7 @@ public class XmlVerifier {
         this.comparator = comparator;
     }
 
-    public Result verify(JsonNode expected, NgcView view, String golden, XmlStore store) {
+    public Result verify(JsonNode expected, NgcView view, String golden, ObjectStore store) {
         List<AssertionOutcome> out = new ArrayList<>();
         IncomingEventView incoming = view.incomingEvents().isEmpty() ? null
                 : view.incomingEvents().get(view.incomingEvents().size() - 1);
@@ -96,7 +98,7 @@ public class XmlVerifier {
     }
 
     /** Prefer the exact path NGC handed to CDS; fall back to s3FileBaseLocation + xmlFileName. */
-    private Located locate(IncomingEventView incoming, TargetView target, CdsPayload cds, XmlStore store) {
+    private Located locate(IncomingEventView incoming, TargetView target, CdsPayload cds, ObjectStore store) {
         List<S3Location> candidates = new ArrayList<>();
         if (cds != null) {
             S3Location.parse(cds.fields().get("OutputFilePath")).ifPresent(candidates::add);
@@ -121,7 +123,7 @@ public class XmlVerifier {
         return new Located(null, null, tried);
     }
 
-    private AssertionOutcome xsd(CdsPayload cds, String xml, XmlStore store) {
+    private AssertionOutcome xsd(CdsPayload cds, String xml, ObjectStore store) {
         Optional<S3Location> loc = cds == null ? Optional.empty() : S3Location.parse(cds.fields().get("XSDFilePath"));
         if (loc.isEmpty()) {
             return fail("xml.xsdValid", "valid against XSD", "no XSDFilePath", "CDS payload has no XSD path");

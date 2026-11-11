@@ -19,6 +19,11 @@ ngc:
     # Read-only access to the NGC database; collectors are disabled when no URI is set
     uri: ${MONGODB_URI:}
     database: ${MONGODB_DATABASE:}
+    connect-timeout-ms: 5000
+    socket-timeout-ms: 30000
+    server-selection-timeout-ms: 10000
+    max-time-ms: 15000
+    read-preference: secondaryPreferred
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVER:}
     key: ${KAFKA_KEY:}
@@ -27,6 +32,14 @@ ngc:
     # Bucket holding NGC-generated XML (read-only). Credentials come from the AWS default chain (AWS_PROFILE / SSO / env).
     bucket: ${S3_BUCKET_NAME:}
     region: ${AWS_REGION:us-east-1}
+  eds:
+    # API Gateway that fronts EDS; read-only document download. Disabled when no base URL is set.
+    base-url: ${API_GATEWAY_BASE_URL:}
+    application-header: ${CORRO_APPLICATION_HEADER:nextgen-correspondence-service}
+    cookie: ${CORRO_GATEWAY_COOKIE:}
+    connect-timeout-ms: 10000
+    read-timeout-ms: 60000
+    max-bytes: 52428800
 
 regression:
   poll-interval-ms: 5000

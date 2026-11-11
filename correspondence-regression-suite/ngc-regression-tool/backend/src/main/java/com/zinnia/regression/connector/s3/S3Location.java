@@ -1,4 +1,4 @@
-package com.zinnia.regression.xml;
+package com.zinnia.regression.connector.s3;
 
 import java.util.Optional;
 

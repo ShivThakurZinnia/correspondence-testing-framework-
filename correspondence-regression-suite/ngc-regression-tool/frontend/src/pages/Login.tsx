@@ -26,7 +26,7 @@ export function Login() {
     <div className="login-wrap">
       <form className="login-card" onSubmit={submit}>
         <div className="brand big">
-          <span className="logo">✓</span> NGC Regression
+          <span className="logo">✓</span> Corro Regression
         </div>
         <p className="muted">Sign in to see runs, schedules and test modules.</p>
         <label className="field">

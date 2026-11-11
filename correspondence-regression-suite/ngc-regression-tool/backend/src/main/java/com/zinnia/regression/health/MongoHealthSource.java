@@ -1,7 +1,10 @@
 package com.zinnia.regression.health;
 
+import com.mongodb.client.AggregateIterable;
+import com.mongodb.client.FindIterable;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoDatabase;
+import com.zinnia.regression.connector.mongo.MongoLimits;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -26,9 +29,23 @@ public class MongoHealthSource implements HealthSource {
     private static final int FUNNEL_SAMPLE = 5000;
 
     private final MongoDatabase db;
+    private final MongoLimits limits;
 
-    public MongoHealthSource(MongoClient client, @Value("${ngc.mongo.database}") String database) {
+    public MongoHealthSource(MongoClient client, @Value("${ngc.mongo.database}") String database, MongoLimits limits) {
         this.db = client.getDatabase(database);
+        this.limits = limits;
+    }
+
+    private AggregateIterable<Document> aggregate(String collection, List<Document> pipeline) {
+        return limits.apply(db.getCollection(collection).aggregate(pipeline));
+    }
+
+    private FindIterable<Document> find(String collection, Document filter) {
+        return limits.apply(db.getCollection(collection).find(filter));
+    }
+
+    private long count(String collection, Document filter) {
+        return limits.count(db.getCollection(collection), filter);
     }
 
     @Override
@@ -37,7 +54,7 @@ public class MongoHealthSource implements HealthSource {
         Date staleBefore = Date.from(now.minus(staleAfter));
         // age reference: when processing started, else last update, else creation (older rows have no processingStartedAt)
         Document ref = new Document("$ifNull", List.of("$processingStartedAt", new Document("$ifNull", List.of("$updatedAt", "$createdAt"))));
-        Document row = first(db.getCollection("incoming_events").aggregate(List.of(
+        Document row = first(aggregate("incoming_events", List.of(
                 new Document("$match", new Document("status", new Document("$in", OPEN))),
                 new Document("$addFields", new Document("ref", ref)),
                 new Document("$group", new Document("_id", null)
@@ -47,15 +64,15 @@ public class MongoHealthSource implements HealthSource {
                         .append("oldestStuck", new Document("$min", new Document("$cond", java.util.Arrays.asList(
                                 new Document("$and", List.of(new Document("$lt", List.of("$ref", stuckBefore)),
                                         new Document("$gte", List.of("$ref", staleBefore)))), "$ref", null))))))));
-        long internal = db.getCollection("internal_events").countDocuments(new Document("status", "PROCESSING")
+        long internal = count("internal_events", new Document("status", "PROCESSING")
                 .append("processingStartedAt", new Document("$lt", stuckBefore).append("$gte", staleBefore)));
 
         // followupDateTime is stored as an ISO-8601 UTC string, which sorts correctly as text
         String nowIso = iso(now);
         String sevenDaysAgo = iso(now.minus(Duration.ofDays(7)));
-        long recent = db.getCollection("timed_corro").countDocuments(new Document("status", "UNPROCESSED")
+        long recent = count("timed_corro", new Document("status", "UNPROCESSED")
                 .append("followupDateTime", new Document("$lt", nowIso).append("$gte", sevenDaysAgo)));
-        long older = db.getCollection("timed_corro").countDocuments(new Document("status", "UNPROCESSED")
+        long older = count("timed_corro", new Document("status", "UNPROCESSED")
                 .append("followupDateTime", new Document("$lt", sevenDaysAgo)));
         return new StuckData(row == null ? 0 : num(row, "stuck"), row == null ? null : instant(row.get("oldestStuck")),
                 row == null ? 0 : num(row, "stale"), internal, recent, older);
@@ -64,7 +81,7 @@ public class MongoHealthSource implements HealthSource {
     @Override
     public List<EventStatusCount> statusCounts(Instant since) {
         List<EventStatusCount> out = new ArrayList<>();
-        db.getCollection("incoming_events").aggregate(List.of(
+        aggregate("incoming_events", List.of(
                 new Document("$match", new Document("createdAt", new Document("$gte", Date.from(since)))),
                 new Document("$group", new Document("_id", new Document("c", "$carrier").append("e", "$eventType")
                         .append("s", "$status").append("x", "$errorCategory")).append("n", new Document("$sum", 1)))))
@@ -79,7 +96,7 @@ public class MongoHealthSource implements HealthSource {
     @Override
     public List<NameCount> topFailureWorkers(Instant since, int limit) {
         List<NameCount> out = new ArrayList<>();
-        db.getCollection("technical_failures").aggregate(List.of(
+        aggregate("technical_failures", List.of(
                 new Document("$match", new Document("createdAt", new Document("$gte", Date.from(since)))),
                 new Document("$group", new Document("_id", new Document("$ifNull", List.of("$workerName", "$eventType")))
                         .append("n", new Document("$sum", 1))),
@@ -91,7 +108,7 @@ public class MongoHealthSource implements HealthSource {
     @Override
     public Map<String, Long> retryStatuses() {
         Map<String, Long> out = new LinkedHashMap<>();
-        db.getCollection("technical_failure_retries").aggregate(List.of(
+        aggregate("technical_failure_retries", List.of(
                 new Document("$group", new Document("_id", "$status").append("n", new Document("$sum", 1)))))
                 .forEach(d -> out.put(String.valueOf(d.get("_id")), num(d, "n")));
         return out;
@@ -100,11 +117,11 @@ public class MongoHealthSource implements HealthSource {
     @Override
     public DeadLetterData deadLetters() {
         Map<String, Long> by = new LinkedHashMap<>();
-        db.getCollection("dead_letter_events").aggregate(List.of(
+        aggregate("dead_letter_events", List.of(
                 new Document("$group", new Document("_id", "$status").append("n", new Document("$sum", 1)))))
                 .forEach(d -> by.put(String.valueOf(d.get("_id")), num(d, "n")));
-        Document oldestOpen = db.getCollection("dead_letter_events")
-                .find(new Document("status", new Document("$regex", "^(PENDING_REPLAY|FAILED_REPLAY_ATTEMPT)")))
+        Document oldestOpen = find("dead_letter_events",
+                new Document("status", new Document("$regex", "^(PENDING_REPLAY|FAILED_REPLAY_ATTEMPT)")))
                 .sort(new Document("createdAt", 1)).limit(1).first();
         return new DeadLetterData(by, oldestOpen == null ? null : instant(oldestOpen.get("createdAt")));
     }
@@ -113,7 +130,7 @@ public class MongoHealthSource implements HealthSource {
     public FunnelData funnel(Instant since) {
         Date from = Date.from(since);
         Map<String, Instant> cds = new HashMap<>();
-        db.getCollection("cds_events").find(new Document("createdAt", new Document("$gte", from)))
+        find("cds_events", new Document("createdAt", new Document("$gte", from)))
                 .projection(new Document("correlationId", 1).append("createdAt", 1)).limit(FUNNEL_SAMPLE)
                 .forEach(d -> {
                     Instant t = instant(d.get("createdAt"));
@@ -123,7 +140,7 @@ public class MongoHealthSource implements HealthSource {
         Set<String> completed = new HashSet<>();
         Set<String> delivery = new HashSet<>();
         List<Long> seconds = new ArrayList<>();
-        db.getCollection("internal_events").find(new Document("createdAt", new Document("$gte", from))
+        find("internal_events", new Document("createdAt", new Document("$gte", from))
                 .append("eventType", new Document("$regex", "^(pdf\\.generation|delivery\\.)")))
                 .projection(new Document("correlationId", 1).append("eventType", 1).append("createdAt", 1)).limit(FUNNEL_SAMPLE * 4)
                 .forEach(d -> {
@@ -146,12 +163,12 @@ public class MongoHealthSource implements HealthSource {
     @Override
     public List<NewEventType> newEventTypes(Instant since, Instant priorFrom) {
         Set<String> before = new HashSet<>();
-        db.getCollection("incoming_events").aggregate(List.of(
+        aggregate("incoming_events", List.of(
                 new Document("$match", new Document("createdAt", new Document("$gte", Date.from(priorFrom)).append("$lt", Date.from(since)))),
                 new Document("$group", new Document("_id", new Document("c", "$carrier").append("e", "$eventType")))))
                 .forEach(d -> before.add(str((Document) d.get("_id"), "c") + "|" + str((Document) d.get("_id"), "e")));
         List<NewEventType> out = new ArrayList<>();
-        db.getCollection("incoming_events").aggregate(List.of(
+        aggregate("incoming_events", List.of(
                 new Document("$match", new Document("createdAt", new Document("$gte", Date.from(since)))),
                 new Document("$group", new Document("_id", new Document("c", "$carrier").append("e", "$eventType"))
                         .append("first", new Document("$min", "$createdAt")))))
@@ -166,7 +183,7 @@ public class MongoHealthSource implements HealthSource {
 
     @Override
     public Instant lastIncoming() {
-        Document d = db.getCollection("incoming_events").find().projection(new Document("createdAt", 1))
+        Document d = find("incoming_events", new Document()).projection(new Document("createdAt", 1))
                 .sort(new Document("createdAt", -1)).limit(1).first();
         return d == null ? null : instant(d.get("createdAt"));
     }

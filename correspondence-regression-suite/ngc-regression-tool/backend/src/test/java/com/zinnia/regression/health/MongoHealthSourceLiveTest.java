@@ -15,7 +15,7 @@ class MongoHealthSourceLiveTest {
     @Test
     void buildsAFullReportFromTheRealCollections() {
         try (MongoClient client = MongoClients.create(System.getenv("MONGODB_URI"))) {
-            var source = new MongoHealthSource(client, System.getenv("MONGODB_DATABASE"));
+            var source = new MongoHealthSource(client, System.getenv("MONGODB_DATABASE"), com.zinnia.regression.connector.mongo.MongoLimits.DEFAULT);
 
             for (int hours : new int[]{24, 168, 24 * 60}) {
                 HealthReport r = new HealthService().report(source, Instant.now(), hours, 30);

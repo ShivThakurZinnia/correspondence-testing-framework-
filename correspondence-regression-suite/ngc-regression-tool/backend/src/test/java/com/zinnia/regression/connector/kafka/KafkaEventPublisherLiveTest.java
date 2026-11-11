@@ -1,4 +1,4 @@
-package com.zinnia.regression.publisher;
+package com.zinnia.regression.connector.kafka;
 
 import static org.assertj.core.api.Assertions.assertThat;
 

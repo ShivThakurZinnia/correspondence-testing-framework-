@@ -1,4 +1,4 @@
-package com.zinnia.regression.publisher;
+package com.zinnia.regression.connector.kafka;
 
 public interface EventPublisher {
 

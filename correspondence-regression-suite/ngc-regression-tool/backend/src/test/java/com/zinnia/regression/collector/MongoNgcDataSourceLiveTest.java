@@ -8,6 +8,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoClients;
 import com.mongodb.client.model.Sorts;
+import com.zinnia.regression.connector.mongo.MongoLimits;
 import org.bson.Document;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
@@ -27,7 +28,7 @@ class MongoNgcDataSourceLiveTest {
             assertThat(recent).as("a recent GILI policy page in the database").isNotNull();
             String correlationId = recent.getString("correlationId");
 
-            MongoNgcDataSource source = new MongoNgcDataSource(client, database, new ObservationMapper(new ObjectMapper()));
+            MongoNgcDataSource source = new MongoNgcDataSource(client, database, new ObservationMapper(new ObjectMapper()), MongoLimits.DEFAULT);
             NgcView view = source.collect(correlationId);
 
             System.out.println("LIVE correlation found=" + source.incomingEventExists(correlationId)

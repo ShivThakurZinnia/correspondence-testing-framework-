@@ -321,6 +321,38 @@ export interface HealthReport {
   new_event_types: { carrier: string; event_type: string; first_seen: string }[];
 }
 
+export interface DatabaseAccess {
+  checked: boolean;
+  read_only: boolean;
+  write_actions: string[];
+  note: string | null;
+}
+
+export interface DatabaseCollection {
+  name: string;
+  exists: boolean;
+  estimated_count: number | null;
+  indexes: string[][];
+  missing: { keys: string[]; reason: string }[];
+  error: string | null;
+}
+
+export interface DatabaseResponse {
+  environment: string;
+  database: { access: DatabaseAccess; collections: DatabaseCollection[]; missing_total: number };
+}
+
+export interface ConnectorRow {
+  id: string;
+  state: 'ok' | 'failed' | 'not_probed' | 'not_configured';
+  detail: string;
+}
+
+export interface ConnectorsResponse {
+  environment: string;
+  connectors: ConnectorRow[];
+}
+
 export interface HealthResponse {
   environment: string;
   report: HealthReport;
@@ -352,3 +384,106 @@ export interface TagCounts {
 }
 
 export interface Revision extends CaseDetail {}
+
+export interface ForensicsEventType {
+  event_type: string;
+  total: number;
+  failed: number;
+  technical: number;
+  business: number;
+  stuck: number;
+  ok: number;
+}
+
+export interface ForensicsCarrier {
+  carrier: string;
+  total: number;
+  failed: number;
+  rejected_dead_letters: number;
+  rejected_invalid: number;
+  event_types: ForensicsEventType[];
+}
+
+export interface ForensicsTree {
+  window_hours: number;
+  carriers: ForensicsCarrier[];
+}
+
+export interface ForensicsTarget {
+  role: string | null;
+  status: string | null;
+  delivery_type: string | null;
+  error: string | null;
+}
+
+export interface ForensicsEvent {
+  unique_id: string;
+  correlation_id: string;
+  carrier: string | null;
+  event_type: string | null;
+  policy_number: string | null;
+  plan_code: string | null;
+  source: string | null;
+  status: string | null;
+  error_category: string | null;
+  error: string | null;
+  retry_in_progress: boolean;
+  created_at: string | null;
+  updated_at: string | null;
+  targets: ForensicsTarget[];
+}
+
+export interface ForensicsRejection {
+  kind: 'DEAD_LETTER' | 'INVALID';
+  correlation_id: string | null;
+  carrier: string | null;
+  event_type: string | null;
+  policy_number: string | null;
+  status: string | null;
+  reason: string | null;
+  at: string | null;
+}
+
+export interface ForensicsSearch {
+  events: ForensicsEvent[];
+  rejected: ForensicsRejection[];
+  has_more: boolean;
+  next_before: string | null;
+}
+
+export interface ForensicsTimelineEntry {
+  at: string | null;
+  collection: string;
+  type: string | null;
+  status: string | null;
+  role: string | null;
+  detail: string | null;
+  attempt: string | null;
+}
+
+export interface ForensicsStage {
+  code: string;
+  label: string;
+  state: 'done' | 'failed' | 'pending';
+  at: string | null;
+}
+
+export interface ForensicsRetry {
+  worker: string | null;
+  status: string | null;
+  attempts: number;
+  last_attempt_at: string | null;
+  next_eligible_at: string | null;
+  attempt: string | null;
+}
+
+export interface ForensicsHistory {
+  correlation_id: string;
+  selected_attempt: string | null;
+  attempt_count: number;
+  attempts: ForensicsEvent[];
+  stages: ForensicsStage[];
+  timeline: ForensicsTimelineEntry[];
+  retries: ForensicsRetry[];
+  markers: string[];
+}

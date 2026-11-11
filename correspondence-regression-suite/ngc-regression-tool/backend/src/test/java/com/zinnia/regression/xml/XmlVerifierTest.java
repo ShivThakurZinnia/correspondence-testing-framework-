@@ -9,6 +9,7 @@ import com.zinnia.regression.collector.NgcView;
 import com.zinnia.regression.collector.NgcView.CdsPayload;
 import com.zinnia.regression.collector.NgcView.IncomingEventView;
 import com.zinnia.regression.collector.NgcView.TargetView;
+import com.zinnia.regression.connector.s3.ObjectStore;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -34,7 +35,7 @@ class XmlVerifierTest {
     final ObjectMapper mapper = new ObjectMapper();
     final XmlVerifier verifier = new XmlVerifier(new XmlComparator());
 
-    static class FakeStore implements XmlStore {
+    static class FakeStore implements ObjectStore {
         final Map<String, String> objects = new HashMap<>();
         final List<String> reads = new ArrayList<>();
         boolean broken;
@@ -45,12 +46,12 @@ class XmlVerifierTest {
         }
 
         @Override
-        public Optional<String> read(String bucket, String key) {
+        public Optional<byte[]> readBytes(String bucket, String key) {
             reads.add(bucket + "/" + key);
             if (broken) {
                 throw new IllegalStateException("Cannot read: SSO session expired");
             }
-            return Optional.ofNullable(objects.get(bucket + "/" + key));
+            return Optional.ofNullable(objects.get(bucket + "/" + key)).map(o -> o.getBytes(java.nio.charset.StandardCharsets.UTF_8));
         }
     }
 

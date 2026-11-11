@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { HealthReport } from '../lib/types';
+import type { ConnectorsResponse, DatabaseResponse, HealthReport } from '../lib/types';
 import { Health, minutes, pct } from './Health';
 
 const report = (over: Partial<HealthReport> = {}): HealthReport => ({
@@ -31,9 +31,36 @@ const report = (over: Partial<HealthReport> = {}): HealthReport => ({
   ...over,
 });
 
-function mockApi(r: HealthReport | { status: number; errors: string[] }) {
+const database = (over: Partial<DatabaseResponse['database']> = {}): DatabaseResponse => ({
+  environment: 'dev',
+  database: {
+    access: { checked: true, read_only: true, write_actions: [], note: null },
+    collections: [
+      { name: 'incoming_events', exists: true, estimated_count: 1200000, indexes: [['_id'], ['uniqueId']], missing: [{ keys: ['createdAt'], reason: 'time-window health and search queries' }], error: null },
+      { name: 'dead_letter_events', exists: true, estimated_count: 14, indexes: [['_id'], ['correlationId']], missing: [], error: null },
+    ],
+    missing_total: 1,
+    ...over,
+  },
+});
+
+const connectors = (): ConnectorsResponse => ({
+  environment: 'dev',
+  connectors: [
+    { id: 'mongo', state: 'ok', detail: 'Database ngc answers' },
+    { id: 's3', state: 'failed', detail: 'Cannot reach bucket b (SdkClientException)' },
+    { id: 'eds', state: 'not_probed', detail: 'Gateway gw.example configured; reachability is only known when a document is fetched' },
+    { id: 'kafka', state: 'not_configured', detail: 'Not configured on this instance' },
+  ],
+});
+
+function mockApi(r: HealthReport | { status: number; errors: string[] }, db: DatabaseResponse | { status: number; errors: string[] } = database()) {
   vi.stubGlobal('fetch', vi.fn(async (url: string) => {
     if (url.startsWith('/api/health/history')) return new Response('[]', { status: 200 });
+    if (url.startsWith('/api/connectors')) return new Response(JSON.stringify(connectors()), { status: 200 });
+    if (url.startsWith('/api/health/indexes')) {
+      return 'status' in db ? new Response(JSON.stringify({ errors: db.errors }), { status: db.status }) : new Response(JSON.stringify(db), { status: 200 });
+    }
     if ('status' in r) return new Response(JSON.stringify({ errors: r.errors }), { status: r.status });
     return new Response(JSON.stringify({ environment: 'dev', report: r }), { status: 200 });
   }));
@@ -84,6 +111,54 @@ describe('Health page', () => {
     expect(screen.getByText('Healthy')).toBeInTheDocument();
     expect(screen.getByText('Nothing new in this window.')).toBeInTheDocument();
     expect(screen.getByText('No technical failures in this window.')).toBeInTheDocument();
+  });
+
+  it('shows the read-only user and which indexes are missing', async () => {
+    mockApi(report());
+    renderPage();
+
+    expect(await screen.findByText('The database user is read-only.')).toBeInTheDocument();
+    expect(screen.getByText(/1 index is missing/)).toBeInTheDocument();
+    const row = screen.getByText('createdAt').closest('tr')!;
+    expect(within(row).getByText('incoming_events')).toBeInTheDocument();
+    expect(within(row).getByText('1,200,000')).toBeInTheDocument();
+    expect(within(row).getByText('time-window health and search queries')).toBeInTheDocument();
+  });
+
+  it('lists every connector with its state', async () => {
+    mockApi(report());
+    renderPage();
+
+    const mongo = (await screen.findByText('MongoDB')).closest('li')!;
+    expect(within(mongo).getByLabelText('Healthy')).toBeInTheDocument();
+    expect(within(mongo).getByText('Database ngc answers')).toBeInTheDocument();
+    const s3 = screen.getByText('S3').closest('li')!;
+    expect(within(s3).getByLabelText('Problem')).toBeInTheDocument();
+    expect(s3).toHaveClass('lvl-issue-bad');
+    expect(within(screen.getByText('EDS documents').closest('li')!).getByText(/only known when a document is fetched/)).toBeInTheDocument();
+    expect(within(screen.getByText('Kafka').closest('li')!).getByText('Not configured on this instance')).toBeInTheDocument();
+  });
+
+  it('warns when the database user can write', async () => {
+    mockApi(report(), database({ access: { checked: true, read_only: false, write_actions: ['insert', 'update'], note: null }, missing_total: 0, collections: [] }));
+    renderPage();
+
+    expect(await screen.findByText(/can write \(insert, update\)/)).toBeInTheDocument();
+    expect(screen.getByText('Every index the tool\'s queries rely on is present.')).toBeInTheDocument();
+  });
+
+  it('says so when access could not be checked', async () => {
+    mockApi(report(), database({ access: { checked: false, read_only: false, write_actions: [], note: 'The connection is not authenticated, so privileges are unknown' }, missing_total: 0, collections: [] }));
+    renderPage();
+
+    expect(await screen.findByText(/not authenticated, so privileges are unknown/)).toBeInTheDocument();
+  });
+
+  it('shows a slow-database message in the card', async () => {
+    mockApi(report(), { status: 502, errors: ['The NGC database took too long to answer; a missing index is the usual cause (see /api/health/indexes)'] });
+    renderPage();
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('took too long to answer');
   });
 
   it('explains when Mongo is not configured', async () => {

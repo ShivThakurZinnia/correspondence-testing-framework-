@@ -2,6 +2,8 @@ package com.zinnia.regression.health;
 
 import com.zinnia.regression.common.Rows;
 import com.zinnia.regression.config.WiredEnvironment;
+import com.zinnia.regression.connector.mongo.MongoDiagnostics;
+import com.zinnia.regression.connector.mongo.MongoLimits;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -19,6 +21,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class HealthController {
 
     private final ObjectProvider<HealthSource> source;
+    private final ObjectProvider<MongoDiagnostics> diagnostics;
     private final HealthService service;
     private final WiredEnvironment wired;
     private final JdbcClient jdbc;
@@ -30,11 +33,12 @@ public class HealthController {
     private record Cached(Instant at, Map<String, Object> body) {
     }
 
-    public HealthController(ObjectProvider<HealthSource> source, HealthService service, WiredEnvironment wired,
+    public HealthController(ObjectProvider<HealthSource> source, ObjectProvider<MongoDiagnostics> diagnostics, HealthService service, WiredEnvironment wired,
                             JdbcClient jdbc, @Value("${regression.health.stuck-minutes:30}") int defaultStuckMinutes,
                             @Value("${regression.health.warm-up-on-start:true}") boolean warmUpOnStart) {
         this.warmUpOnStart = warmUpOnStart;
         this.source = source;
+        this.diagnostics = diagnostics;
         this.service = service;
         this.wired = wired;
         this.jdbc = jdbc;
@@ -72,8 +76,28 @@ public class HealthController {
             cache.put(key, new Cached(Instant.now(), body));
             return ResponseEntity.ok(body);
         } catch (RuntimeException e) {
-            return ResponseEntity.status(502).body(Map.of("valid", false, "errors",
-                    List.of("Could not read the NGC database: " + e.getMessage())));
+            return ResponseEntity.status(502).body(Map.of("valid", false, "errors", List.of(readError(e))));
+        }
+    }
+
+    public static String readError(RuntimeException e) {
+        return MongoLimits.isTimeout(e)
+                ? "The NGC database took too long to answer; a missing index is the usual cause (see /api/health/indexes)"
+                : "Could not read the NGC database: " + e.getMessage();
+    }
+
+    /** What the Mongo user may do and which indexes the tool's queries are missing. Read-only. */
+    @GetMapping("/indexes")
+    public ResponseEntity<?> indexes() {
+        MongoDiagnostics d = diagnostics.getIfAvailable();
+        if (d == null) {
+            return ResponseEntity.status(503).body(Map.of("valid", false, "errors",
+                    List.of("Mongo is not configured (MONGODB_URI, MONGODB_DATABASE)")));
+        }
+        try {
+            return ResponseEntity.ok(Map.of("environment", wired.code().orElse(""), "database", d.report()));
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(502).body(Map.of("valid", false, "errors", List.of(readError(e))));
         }
     }
 
