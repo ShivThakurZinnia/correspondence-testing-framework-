@@ -4,7 +4,7 @@ import { TagPicker } from '../components/TagPicker';
 import { Card, Empty, ErrorNote, Field, Modal, PageHeader } from '../components/ui';
 import { api, json } from '../lib/api';
 import { useToast } from '../lib/toast';
-import { CRON_PRESETS, describeCron, isSixFieldCron } from '../lib/cron';
+import { CRON_PRESETS, describeCron, isSixFieldCron, nextMinuteCron } from '../lib/cron';
 import { formatDateTime, timeAgo } from '../lib/format';
 import { parseTagExpression, tagExpression } from '../lib/tags';
 import type { Schedule, ScheduleInput } from '../lib/types';
@@ -131,6 +131,10 @@ function ScheduleForm({ schedule, onClose, onSaved }: { schedule: Schedule | nul
             {CRON_PRESETS.map((p) => <option key={p.cron} value={p.cron}>{p.label}</option>)}
           </select>
           <input className="mono" value={form.cron} onChange={set('cron')} aria-label="Cron expression" />
+          <button type="button" className="btn small" disabled={!nextMinuteCron(form.timezone)} title="Sets the time to the next whole minute in the time zone below, so the run starts about a minute after you save"
+            onClick={() => { const n = nextMinuteCron(form.timezone); if (n) setForm({ ...form, cron: n.cron }); }}>
+            Run in ~1 min
+          </button>
         </Field>
         <div className="grid2">
           <Field label="Time zone">

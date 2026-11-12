@@ -259,4 +259,37 @@ class ScheduleServiceTest {
                 .query(Boolean.class).single()).isTrue();
         assertThat(schedules.list().get(0).get("module")).isNull();
     }
+
+    @Test
+    void upcomingListsNextRunsSoonestFirstWithTheScenariosTheyWillPlay() {
+        schedules.create(req("late", "0 0 0 1 1 *", "UTC", null), "t");
+        schedules.create(req("early", "0 * * * * *", "UTC", null), "t");
+        schedules.create(new ScheduleRequest("empty-sched", "policy-page", null, "qa", "client:NOBODY", "0 30 * * * *", "UTC", null, null), "t");
+
+        List<java.util.Map<String, Object>> up = schedules.upcoming(10);
+
+        assertThat(up).extracting(r -> r.get("name")).startsWith("early");
+        java.util.Map<String, Object> early = up.stream().filter(r -> "early".equals(r.get("name"))).findFirst().orElseThrow();
+        assertThat(early.get("events")).isEqualTo(1);
+        assertThat(early).doesNotContainKey("problem");
+        List<?> scenarios = (List<?>) early.get("scenarios");
+        assertThat(scenarios).hasSize(1);
+        assertThat(((java.util.Map<?, ?>) scenarios.get(0)).get("scenario_key")).isEqualTo("gili-owner-print");
+        java.util.Map<String, Object> none = up.stream().filter(r -> "empty-sched".equals(r.get("name"))).findFirst().orElseThrow();
+        assertThat(none.get("problem")).asString().contains("No enabled test cases");
+        assertThat((List<?>) none.get("scenarios")).isEmpty();
+    }
+
+    @Test
+    void editingTheTimeMovesTheNextRunToTheNewTime() {
+        long id = schedules.create(req("moves", "0 0 6 * * *", "UTC", null), "t");
+        java.time.ZonedDateTime soon = java.time.ZonedDateTime.now(java.time.ZoneOffset.UTC).plusMinutes(1);
+        String cron = "0 " + soon.getMinute() + " " + soon.getHour() + " * * *";
+
+        schedules.update(id, req("moves", cron, "UTC", null), "t");
+
+        Instant next = ((java.time.OffsetDateTime) schedules.list().stream().filter(r -> r.get("id").equals(id)).findFirst()
+                .orElseThrow().get("next_fire_at")).toInstant();
+        assertThat(next).isBetween(Instant.now().minusSeconds(5), Instant.now().plusSeconds(125));
+    }
 }

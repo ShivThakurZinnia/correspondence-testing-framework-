@@ -19,3 +19,20 @@ export function describeCron(cron: string): string {
 }
 
 export const isSixFieldCron = (cron: string): boolean => cron.trim().split(/\s+/).length === 6;
+
+/**
+ * A daily cron that fires at the next whole minute in the given time zone, at least `leadSeconds` from now, so a save
+ * takes effect almost immediately. Returns null for an unknown time zone.
+ */
+export function nextMinuteCron(timezone: string, now: number = Date.now(), leadSeconds = 30): { cron: string; time: string } | null {
+  const target = new Date(Math.ceil((now + leadSeconds * 1000) / 60000) * 60000);
+  try {
+    const parts = new Intl.DateTimeFormat('en-GB', { timeZone: timezone.trim(), hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(target);
+    const hour = Number(parts.find((p) => p.type === 'hour')?.value);
+    const minute = Number(parts.find((p) => p.type === 'minute')?.value);
+    if (Number.isNaN(hour) || Number.isNaN(minute)) return null;
+    return { cron: `0 ${minute} ${hour} * * *`, time: `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}` };
+  } catch {
+    return null;
+  }
+}

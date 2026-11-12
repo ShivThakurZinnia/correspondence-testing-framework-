@@ -59,6 +59,39 @@ public class RunService {
                 (int) Math.ceil(events / eps), largeRunThreshold, events > largeRunThreshold);
     }
 
+    /**
+     * The test cases a run with this request would play, each with its plan codes, in run order. Nothing is created.
+     * Used to show what a schedule will cover; throws ValidationException when nothing matches.
+     */
+    public List<java.util.Map<String, Object>> scenarios(RunRequest req) {
+        Selection sel = select(req);
+        java.util.Map<Long, List<String>> codes = new java.util.LinkedHashMap<>();
+        sel.plays().forEach(p -> {
+            List<String> mine = codes.computeIfAbsent(p.caseVersionId(), k -> new ArrayList<>());
+            if (p.planCode() != null) {
+                mine.add(p.planCode());
+            }
+        });
+        java.util.Map<Long, java.util.Map<String, Object>> info = new java.util.HashMap<>();
+        com.zinnia.regression.common.Rows.list(jdbc.sql("""
+                SELECT v.id, c.scenario_key, v.name AS scenario_name, v.carrier, v.event_type
+                FROM test_case_version v JOIN test_case c ON c.id = v.test_case_id WHERE v.id IN (:ids)
+                """).param("ids", new ArrayList<>(codes.keySet()))).forEach(r -> info.put(((Number) r.get("id")).longValue(), r));
+        List<java.util.Map<String, Object>> out = new ArrayList<>();
+        codes.forEach((id, plan) -> {
+            java.util.Map<String, Object> row = new java.util.LinkedHashMap<>();
+            java.util.Map<String, Object> i = info.getOrDefault(id, java.util.Map.of());
+            row.put("scenario_key", i.get("scenario_key"));
+            row.put("scenario_name", i.get("scenario_name"));
+            row.put("carrier", i.get("carrier"));
+            row.put("event_type", i.get("event_type"));
+            row.put("plan_codes", plan);
+            row.put("events", Math.max(1, plan.size()));
+            out.add(row);
+        });
+        return out;
+    }
+
     @Transactional
     public String create(RunRequest req, String user, Long scheduleId) {
         Selection sel = select(req);

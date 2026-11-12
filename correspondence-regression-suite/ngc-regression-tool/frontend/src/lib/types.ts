@@ -47,7 +47,43 @@ export interface CaseRow {
   plan_code: string | null;
   run_key: string;
   env: string;
+  test_case_id?: number;
   progress?: Stage[];
+}
+
+/** All events of one test case in a run (one per plan code), with a roll-up. */
+export interface RunGroup {
+  test_case_id: number;
+  scenario_key: string;
+  scenario_name: string;
+  carrier: string;
+  event_type: string;
+  total: number;
+  failed: number;
+  passed: number;
+  status: 'FAILED' | 'RUNNING' | 'PASSED' | 'SKIPPED';
+  summary: Record<string, number>;
+  cases: CaseRow[];
+}
+
+/** A run with the events that matched an Events search. */
+export interface EventRun {
+  run_key: string;
+  status: RunStatus;
+  trigger_source: string;
+  triggered_by: string | null;
+  env: string;
+  module: string | null;
+  tag_expression: string | null;
+  queued_at: string;
+  started_at: string | null;
+  finished_at: string | null;
+  total_cases: number;
+  passed_cases: number;
+  failed_cases: number;
+  schedule_name: string | null;
+  matching: number;
+  events: CaseRow[];
 }
 
 export interface RunDetail extends Omit<RunRow, 'schedule_name' | 'duration_seconds'> {
@@ -60,7 +96,8 @@ export interface RunDetail extends Omit<RunRow, 'schedule_name' | 'duration_seco
   page: number;
   size: number;
   matching: number;
-  cases: CaseRow[];
+  matching_events: number;
+  groups: RunGroup[];
 }
 
 export interface CompareEvent {
@@ -109,7 +146,15 @@ export interface TimelineRow {
   role_tracking_id: string | null;
 }
 
+export interface EventLink {
+  correlation_id: string;
+  plan_code: string | null;
+  status: CaseStatus;
+}
+
 export interface EventDetail extends CaseRow {
+  siblings: EventLink[];
+  previous: (EventLink & { run_key: string; finished_at: string | null }) | null;
   assertions: Assertion[];
   timeline: TimelineRow[];
   artifacts: { id: number; kind: string; name: string; role: string }[];
@@ -486,4 +531,29 @@ export interface ForensicsHistory {
   timeline: ForensicsTimelineEntry[];
   retries: ForensicsRetry[];
   markers: string[];
+}
+
+export interface UpcomingScenario {
+  scenario_key: string;
+  scenario_name: string;
+  carrier: string;
+  event_type: string;
+  plan_codes: string[];
+  events: number;
+}
+
+/** A scheduled run still to come, with the test cases it would play. */
+export interface UpcomingRun {
+  id: number;
+  name: string;
+  env: string;
+  module: string | null;
+  tag_expression: string | null;
+  cron_expression: string;
+  timezone: string;
+  next_fire_at: string;
+  executing: boolean;
+  events: number;
+  scenarios: UpcomingScenario[];
+  problem?: string;
 }

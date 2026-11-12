@@ -144,4 +144,79 @@ class RunQueryControllerTest {
         mvc.perform(get("/api/events?scenario=gili-policy-page-owner-print&env=uat"))
                 .andExpect(jsonPath("$.length()").value(0));
     }
+
+    /** Adds events to run-1 (same test case, other plan codes) and a newer run-2 with the same test case. */
+    private void addPlanCodeEventsAndSecondRun() {
+        long tcv = jdbc.sql("SELECT id FROM test_case_version").query(Long.class).single();
+        long mv = jdbc.sql("SELECT module_version_id FROM test_run WHERE run_key = 'run-1'").query(Long.class).single();
+        long env = jdbc.sql("SELECT environment_id FROM test_run WHERE run_key = 'run-1'").query(Long.class).single();
+        long run1 = jdbc.sql("SELECT id FROM test_run WHERE run_key = 'run-1'").query(Long.class).single();
+        jdbc.sql("UPDATE test_run_case SET plan_code = 'P1' WHERE run_id = :r").param("r", run1).update();
+        insertCase(run1, tcv, "aaaaaaaa-1111-4222-8333-000000000002", "P2", "PASSED");
+        insertCase(run1, tcv, "aaaaaaaa-1111-4222-8333-000000000003", "P3", "PASSED");
+        jdbc.sql("""
+                INSERT INTO test_run (run_key, module_version_id, environment_id, trigger_source, triggered_by, status,
+                  started_at, finished_at, total_cases, passed_cases, failed_cases, tag_expression)
+                VALUES ('run-2', :mv, :env, 'UI', 'tester', 'PASSED', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1, 1, 0, 'client:GILI')
+                """).param("mv", mv).param("env", env).update();
+        long run2 = jdbc.sql("SELECT id FROM test_run WHERE run_key = 'run-2'").query(Long.class).single();
+        insertCase(run2, tcv, "aaaaaaaa-1111-4222-8333-000000000004", "P1", "PASSED");
+    }
+
+    private void insertCase(long run, long tcv, String corr, String plan, String status) {
+        jdbc.sql("""
+                INSERT INTO test_run_case (run_id, test_case_version_id, correlation_id, topic_name, status, plan_code)
+                VALUES (:run, :tcv, :corr, 'zinnia.correspondence.sor', :st, :plan)
+                """).param("run", run).param("tcv", tcv).param("corr", corr).param("st", status).param("plan", plan).update();
+    }
+
+    @Test
+    void runDetailGroupsPlanCodeEventsByTestCaseWithRollup() throws Exception {
+        addPlanCodeEventsAndSecondRun();
+        mvc.perform(get("/api/runs/run-1?group=scenario")).andExpect(status().isOk())
+                .andExpect(jsonPath("$.matching").value(1))
+                .andExpect(jsonPath("$.matching_events").value(3))
+                .andExpect(jsonPath("$.groups.length()").value(1))
+                .andExpect(jsonPath("$.groups[0].scenario_key").value("gili-policy-page-owner-print"))
+                .andExpect(jsonPath("$.groups[0].total").value(3))
+                .andExpect(jsonPath("$.groups[0].failed").value(1))
+                .andExpect(jsonPath("$.groups[0].status").value("FAILED"))
+                .andExpect(jsonPath("$.groups[0].cases.length()").value(3))
+                .andExpect(jsonPath("$.groups[0].cases[0].plan_code").value("P1"));
+        // A status filter narrows the listed events but the roll-up still describes the whole group.
+        mvc.perform(get("/api/runs/run-1?group=scenario&status=PASSED"))
+                .andExpect(jsonPath("$.groups[0].cases.length()").value(2))
+                .andExpect(jsonPath("$.groups[0].total").value(3));
+        mvc.perform(get("/api/runs/run-1?group=scenario&q=nomatch")).andExpect(jsonPath("$.groups.length()").value(0));
+    }
+
+    @Test
+    void eventsByRunGroupsNewestRunFirstAndFiltersByRunKey() throws Exception {
+        addPlanCodeEventsAndSecondRun();
+        mvc.perform(get("/api/events/by-run")).andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[0].run_key").value("run-2"))
+                .andExpect(jsonPath("$[0].events.length()").value(1))
+                .andExpect(jsonPath("$[1].run_key").value("run-1"))
+                .andExpect(jsonPath("$[1].matching").value(3))
+                .andExpect(jsonPath("$[1].events[0].status").value("FAILED"));
+        mvc.perform(get("/api/events/by-run?status=failed")).andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].run_key").value("run-1"));
+        mvc.perform(get("/api/events/by-run?per_run=1")).andExpect(jsonPath("$[1].events.length()").value(1))
+                .andExpect(jsonPath("$[1].matching").value(3));
+        mvc.perform(get("/api/events?run_key=run-1")).andExpect(jsonPath("$.length()").value(3));
+    }
+
+    @Test
+    void eventDetailListsSiblingPlanCodesAndThePreviousRunOfTheSameEvent() throws Exception {
+        addPlanCodeEventsAndSecondRun();
+        mvc.perform(get("/api/events/aaaaaaaa-1111-4222-8333-000000000004")).andExpect(status().isOk())
+                .andExpect(jsonPath("$.siblings.length()").value(0))
+                .andExpect(jsonPath("$.previous.run_key").value("run-1"))
+                .andExpect(jsonPath("$.previous.correlation_id").value(CORR))
+                .andExpect(jsonPath("$.previous.status").value("FAILED"));
+        mvc.perform(get("/api/events/" + CORR)).andExpect(jsonPath("$.siblings.length()").value(2))
+                .andExpect(jsonPath("$.siblings[0].plan_code").value("P2"))
+                .andExpect(jsonPath("$.previous").doesNotExist());
+    }
 }

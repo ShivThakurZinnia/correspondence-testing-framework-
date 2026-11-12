@@ -113,6 +113,11 @@ public class RunQueryController {
                 .query().listOfRows().stream().map(Rows::lower).toList();
     }
 
+    /** Flat (ungrouped) run detail, for callers that do not group. */
+    Map<String, Object> run(String runKey, String status, String q, int page, int size) {
+        return run(runKey, status, q, null, page, size);
+    }
+
     private static final List<String> STATUS_ORDER = List.of("ERROR", "FAILED", "TIMEOUT", "RUNNING", "PENDING", "SKIPPED", "PASSED");
 
     /**
@@ -123,6 +128,7 @@ public class RunQueryController {
     public Map<String, Object> run(@PathVariable String runKey,
                                    @RequestParam(required = false) String status,
                                    @RequestParam(required = false) String q,
+                                   @RequestParam(required = false) String group,
                                    @RequestParam(defaultValue = "0") int page,
                                    @RequestParam(defaultValue = "50") int size) {
         Map<String, Object> run = jdbc.sql("""
@@ -148,6 +154,13 @@ public class RunQueryController {
                 : java.util.Arrays.stream(status.split(",")).map(String::trim).map(String::toUpperCase).toList();
         String like = q == null || q.isBlank() ? null : "%" + q.trim().toLowerCase() + "%";
         int pageSize = Math.max(1, Math.min(size, 500));
+        if ("scenario".equalsIgnoreCase(group)) {
+            Map<String, Object> out = new LinkedHashMap<>(run);
+            out.remove("id");
+            out.put("summary", summary);
+            out.putAll(groupedByScenario(id, statuses, like, Math.max(page, 0), pageSize));
+            return out;
+        }
         var spec = jdbc.sql(caseSql() + """
                  WHERE rc.run_id = :id AND (:noStatus = TRUE OR rc.status IN (:statuses))
                    AND (:like IS NULL OR LOWER(c.scenario_key) LIKE :like OR LOWER(tcv.name) LIKE :like
@@ -176,6 +189,84 @@ public class RunQueryController {
         out.put("size", pageSize);
         out.put("matching", matching);
         out.put("cases", cases);
+        return out;
+    }
+
+
+    private static final String RANK = "CASE rc.status WHEN 'ERROR' THEN 0 WHEN 'FAILED' THEN 1 WHEN 'TIMEOUT' THEN 2 "
+            + "WHEN 'RUNNING' THEN 3 WHEN 'PENDING' THEN 4 WHEN 'SKIPPED' THEN 5 ELSE 6 END";
+
+    private static final String RUN_CASE_FILTER = """
+             WHERE rc.run_id = :id AND (:noStatus = TRUE OR rc.status IN (:statuses))
+               AND (:like IS NULL OR LOWER(c.scenario_key) LIKE :like OR LOWER(tcv.name) LIKE :like
+                    OR LOWER(rc.plan_code) LIKE :like OR rc.correlation_id LIKE :like)
+            """;
+
+    /**
+     * One page of a run's events grouped by test case (scenario): a test case played with several plan codes is one group
+     * with a roll-up, so its siblings stay together. Paging is by group, failures first. The roll-up counts every event of
+     * the group in this run; the listed events honour the status and text filters.
+     */
+    private Map<String, Object> groupedByScenario(long runId, List<String> statuses, String like, int page, int pageSize) {
+        List<String> statusParam = statuses == null ? List.of("-") : statuses;
+        List<Long> ids = jdbc.sql("SELECT c.id " + CASE_FROM + RUN_CASE_FILTER
+                + " GROUP BY c.id ORDER BY MIN(" + RANK + "), MIN(rc.id) LIMIT :size OFFSET :offset")
+                .param("id", runId).param("noStatus", statuses == null).param("statuses", statusParam).param("like", like)
+                .param("size", pageSize).param("offset", (long) page * pageSize).query(Long.class).list();
+        long matching = jdbc.sql("SELECT COUNT(DISTINCT c.id) " + CASE_FROM + RUN_CASE_FILTER)
+                .param("id", runId).param("noStatus", statuses == null).param("statuses", statusParam).param("like", like)
+                .query(Long.class).single();
+        long matchingEvents = jdbc.sql("SELECT COUNT(*) " + CASE_FROM + RUN_CASE_FILTER)
+                .param("id", runId).param("noStatus", statuses == null).param("statuses", statusParam).param("like", like)
+                .query(Long.class).single();
+
+        Map<Long, Map<String, Object>> groups = new LinkedHashMap<>();
+        if (!ids.isEmpty()) {
+            Map<Long, Map<String, Long>> counts = new LinkedHashMap<>();
+            jdbc.sql("SELECT c.id, rc.status, COUNT(*) " + CASE_FROM
+                    + " WHERE rc.run_id = :id AND c.id IN (:ids) GROUP BY c.id, rc.status")
+                    .param("id", runId).param("ids", ids)
+                    .query((rs, n) -> new Object[]{rs.getLong(1), rs.getString(2), rs.getLong(3)}).list()
+                    .forEach(r -> counts.computeIfAbsent((Long) r[0], k -> new LinkedHashMap<>()).put((String) r[1], (Long) r[2]));
+            List<Map<String, Object>> cases = new ArrayList<>(Rows.list(jdbc.sql(caseSql() + RUN_CASE_FILTER
+                    + " AND c.id IN (:ids) ORDER BY " + RANK + ", rc.plan_code, rc.id")
+                    .param("id", runId).param("noStatus", statuses == null).param("statuses", statusParam)
+                    .param("like", like).param("ids", ids)));
+            cases.forEach(c -> c.put("progress", progress(((Number) c.get("run_case_id")).longValue(), c.get("published_at") != null)));
+            for (Long id : ids) {
+                Map<String, Long> summary = new LinkedHashMap<>();
+                STATUS_ORDER.forEach(st -> summary.put(st, 0L));
+                summary.putAll(counts.getOrDefault(id, Map.of()));
+                long total = summary.values().stream().mapToLong(Long::longValue).sum();
+                long failed = summary.get("ERROR") + summary.get("FAILED") + summary.get("TIMEOUT");
+                long active = summary.get("RUNNING") + summary.get("PENDING");
+                List<Map<String, Object>> mine = cases.stream()
+                        .filter(c -> ((Number) c.get("test_case_id")).longValue() == id).toList();
+                Map<String, Object> g = new LinkedHashMap<>();
+                if (!mine.isEmpty()) {
+                    g.put("scenario_key", mine.get(0).get("scenario_key"));
+                    g.put("scenario_name", mine.get(0).get("scenario_name"));
+                    g.put("carrier", mine.get(0).get("carrier"));
+                    g.put("event_type", mine.get(0).get("event_type"));
+                }
+                g.put("test_case_id", id);
+                g.put("total", total);
+                g.put("failed", failed);
+                g.put("passed", summary.get("PASSED"));
+                g.put("summary", summary);
+                g.put("status", failed > 0 ? "FAILED" : active > 0 ? "RUNNING" : summary.get("PASSED") == total ? "PASSED" : "SKIPPED");
+                g.put("cases", mine);
+                groups.put(id, g);
+            }
+        }
+        // Group header fields come from the listed events; a group whose events were all filtered out cannot occur
+        // because the group page itself is selected with the same filter.
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("page", page);
+        out.put("size", pageSize);
+        out.put("matching", matching);
+        out.put("matching_events", matchingEvents);
+        out.put("groups", new ArrayList<>(groups.values()));
         return out;
     }
 
@@ -274,47 +365,121 @@ public class RunQueryController {
         out.put("artifacts", jdbc.sql("""
                 SELECT a.id, a.kind, a.name, ra.role FROM run_case_artifact ra JOIN artifact a ON a.id = ra.artifact_id
                 WHERE ra.run_case_id = :i""").param("i", id).query().listOfRows().stream().map(Rows::lower).toList());
+        long testCaseId = ((Number) header.get("test_case_id")).longValue();
+        String runKey = (String) header.get("run_key");
+        String planCode = header.get("plan_code") == null ? "" : header.get("plan_code").toString();
+        // Other plan codes of the same test case in this run.
+        out.put("siblings", Rows.list(jdbc.sql("""
+                SELECT rc.correlation_id, rc.plan_code, rc.status FROM test_run_case rc
+                JOIN test_run r ON r.id = rc.run_id JOIN test_case_version tcv ON tcv.id = rc.test_case_version_id
+                WHERE r.run_key = :k AND tcv.test_case_id = :tc AND rc.id <> :i
+                ORDER BY rc.plan_code, rc.id LIMIT 100""").param("k", runKey).param("tc", testCaseId).param("i", id)));
+        // The same test case and plan code in the closest earlier run on the same environment.
+        out.put("previous", Rows.list(jdbc.sql("""
+                SELECT rc.correlation_id, rc.status, r.run_key, r.finished_at FROM test_run_case rc
+                JOIN test_run r ON r.id = rc.run_id JOIN test_case_version tcv ON tcv.id = rc.test_case_version_id
+                JOIN test_run cur ON cur.run_key = :k
+                WHERE tcv.test_case_id = :tc AND COALESCE(rc.plan_code, '') = :pc AND r.environment_id = cur.environment_id
+                  AND r.id < cur.id AND rc.status NOT IN ('PENDING', 'RUNNING', 'SKIPPED')
+                ORDER BY r.id DESC LIMIT 1""").param("k", runKey).param("tc", testCaseId).param("pc", planCode))
+                .stream().findFirst().orElse(null));
         return out;
     }
 
-    /** Historic events across all runs; filter by correlationId fragment, scenario, status, tag or env. */
+    private static final String EVENT_FILTER = """
+             WHERE (:corr IS NULL OR rc.correlation_id LIKE :corrLike)
+               AND (:scenario IS NULL OR c.scenario_key = :scenario)
+               AND (:status IS NULL OR rc.status = UPPER(:status))
+               AND (:env IS NULL OR e.code = :env)
+               AND (:runKey IS NULL OR r.run_key = :runKey)
+               AND (:tagCat IS NULL OR EXISTS (SELECT 1 FROM test_case_version_tag vt JOIN tag g ON g.id = vt.tag_id
+                    WHERE vt.test_case_version_id = tcv.id AND g.category = UPPER(:tagCat) AND g.code = :tagCode))
+            """;
+
+    private static JdbcClient.StatementSpec bindEventFilter(JdbcClient.StatementSpec spec, String correlationId, String scenario,
+                                                            String status, String env, String runKey, String tag) {
+        String[] t = tag == null ? new String[0] : tag.split(":", 2);
+        return spec.param("corr", correlationId).param("corrLike", "%" + correlationId + "%")
+                .param("scenario", scenario).param("status", status).param("env", env).param("runKey", runKey)
+                .param("tagCat", t.length == 2 ? t[0] : null).param("tagCode", t.length == 2 ? t[1] : null);
+    }
+
+    /** Historic events across all runs (flat, newest first); see /events/by-run for the grouped view. */
     @GetMapping("/events")
     public List<Map<String, Object>> events(@RequestParam(required = false) String correlationId,
                                             @RequestParam(required = false) String scenario,
                                             @RequestParam(required = false) String status,
                                             @RequestParam(required = false) String env,
                                             @RequestParam(required = false) String tag,
+                                            @RequestParam(name = "run_key", required = false) String runKey,
                                             @RequestParam(defaultValue = "0") int page,
                                             @RequestParam(defaultValue = "50") int size) {
-        String[] t = tag == null ? new String[0] : tag.split(":", 2);
-        return jdbc.sql(caseSql() + """
-                 WHERE (:corr IS NULL OR rc.correlation_id LIKE :corrLike)
-                   AND (:scenario IS NULL OR c.scenario_key = :scenario)
-                   AND (:status IS NULL OR rc.status = UPPER(:status))
-                   AND (:env IS NULL OR e.code = :env)
-                   AND (:tagCat IS NULL OR EXISTS (SELECT 1 FROM test_case_version_tag vt JOIN tag g ON g.id = vt.tag_id
-                        WHERE vt.test_case_version_id = tcv.id AND g.category = UPPER(:tagCat) AND g.code = :tagCode))
-                 ORDER BY rc.id DESC LIMIT :size OFFSET :offset
-                """)
-                .param("corr", correlationId).param("corrLike", "%" + correlationId + "%")
-                .param("scenario", scenario).param("status", status).param("env", env)
-                .param("tagCat", t.length == 2 ? t[0] : null).param("tagCode", t.length == 2 ? t[1] : null)
-                .param("size", Math.min(size, 200)).param("offset", Math.max(page, 0) * Math.min(size, 200))
-                .query().listOfRows().stream().map(Rows::lower).toList();
+        return Rows.list(bindEventFilter(jdbc.sql(caseSql() + EVENT_FILTER + " ORDER BY rc.id DESC LIMIT :size OFFSET :offset"),
+                correlationId, scenario, status, env, runKey, tag)
+                .param("size", Math.min(size, 200)).param("offset", Math.max(page, 0) * Math.min(size, 200)));
     }
+
+    /**
+     * The same search grouped by run: one entry per run (newest first, paged by run) with its header, counters and the
+     * matching events, failures first. {@code per_run} caps the events listed under each run; {@code matching} says how
+     * many matched, so the UI can link to the run for the rest.
+     */
+    @GetMapping("/events/by-run")
+    public List<Map<String, Object>> eventsByRun(@RequestParam(required = false) String correlationId,
+                                                 @RequestParam(required = false) String scenario,
+                                                 @RequestParam(required = false) String status,
+                                                 @RequestParam(required = false) String env,
+                                                 @RequestParam(required = false) String tag,
+                                                 @RequestParam(name = "run_key", required = false) String runKey,
+                                                 @RequestParam(defaultValue = "0") int page,
+                                                 @RequestParam(defaultValue = "10") int size,
+                                                 @RequestParam(name = "per_run", defaultValue = "50") int perRun) {
+        int runSize = Math.max(1, Math.min(size, 50));
+        int cap = Math.max(1, Math.min(perRun, 200));
+        List<Long> ids = bindEventFilter(jdbc.sql("SELECT r.id " + CASE_FROM + EVENT_FILTER
+                + " GROUP BY r.id ORDER BY r.id DESC LIMIT :size OFFSET :offset"),
+                correlationId, scenario, status, env, runKey, tag)
+                .param("size", runSize).param("offset", Math.max(page, 0) * runSize).query(Long.class).list();
+        if (ids.isEmpty()) {
+            return List.of();
+        }
+        List<Map<String, Object>> runs = Rows.list(jdbc.sql("""
+                SELECT r.id, r.run_key, r.status, r.trigger_source, r.triggered_by, e.code AS env, m.code AS module,
+                       r.tag_expression, r.queued_at, r.started_at, r.finished_at, r.total_cases, r.passed_cases,
+                       r.failed_cases, COALESCE(s.name, r.schedule_name) AS schedule_name
+                FROM test_run r JOIN environment e ON e.id = r.environment_id
+                LEFT JOIN module_version v ON v.id = r.module_version_id LEFT JOIN test_module m ON m.id = v.module_id
+                LEFT JOIN schedule s ON s.id = r.schedule_id
+                WHERE r.id IN (:ids) ORDER BY r.id DESC""").param("ids", ids));
+        List<Map<String, Object>> events = Rows.list(bindEventFilter(jdbc.sql(caseSql() + EVENT_FILTER
+                + " AND r.id IN (:ids) ORDER BY r.id DESC, " + RANK + ", c.scenario_key, rc.plan_code, rc.id"),
+                correlationId, scenario, status, env, runKey, tag).param("ids", ids));
+        Map<String, List<Map<String, Object>>> byRun = new LinkedHashMap<>();
+        events.forEach(ev -> byRun.computeIfAbsent((String) ev.get("run_key"), k -> new ArrayList<>()).add(ev));
+        runs.forEach(r -> {
+            List<Map<String, Object>> mine = byRun.getOrDefault((String) r.get("run_key"), List.of());
+            r.remove("id");
+            r.put("matching", mine.size());
+            r.put("events", mine.size() > cap ? mine.subList(0, cap) : mine);
+        });
+        return runs;
+    }
+
+    private static final String CASE_FROM = """
+            FROM test_run_case rc
+            JOIN test_run r ON r.id = rc.run_id
+            JOIN environment e ON e.id = r.environment_id
+            JOIN test_case_version tcv ON tcv.id = rc.test_case_version_id
+            JOIN test_case c ON c.id = tcv.test_case_id
+            """;
 
     private static String caseSql() {
         return """
                 SELECT rc.id AS run_case_id, rc.correlation_id, rc.ngc_unique_id, rc.status, rc.final_incoming_status,
                        rc.failure_summary, rc.topic_name, rc.published_at, rc.started_at, rc.finished_at,
-                       rc.plan_code, c.scenario_key, tcv.name AS scenario_name, tcv.revision, tcv.carrier, tcv.event_type,
-                       r.run_key, e.code AS env
-                FROM test_run_case rc
-                JOIN test_run r ON r.id = rc.run_id
-                JOIN environment e ON e.id = r.environment_id
-                JOIN test_case_version tcv ON tcv.id = rc.test_case_version_id
-                JOIN test_case c ON c.id = tcv.test_case_id
-                """;
+                       rc.plan_code, c.id AS test_case_id, c.scenario_key, tcv.name AS scenario_name, tcv.revision,
+                       tcv.carrier, tcv.event_type, r.run_key, e.code AS env
+                """ + CASE_FROM;
     }
 
     private List<Map<String, Object>> progress(long runCaseId, boolean published) {

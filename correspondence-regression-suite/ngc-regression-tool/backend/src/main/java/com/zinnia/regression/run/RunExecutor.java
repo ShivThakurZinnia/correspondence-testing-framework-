@@ -166,7 +166,7 @@ public class RunExecutor {
         EventPublisher kafka = publisher.getIfAvailable();
         NgcDataSource source = ngc.getIfAvailable();
         if (kafka == null || source == null) {
-            skipOrFail(run.id(), "PENDING", "ERROR", "Kafka and Mongo must be configured (KAFKA_BOOTSTRAP_SERVER, MONGODB_URI)");
+            skipOrFail(run.id(), "PENDING", "ERROR", "A publisher and Mongo must be configured (GATEWAY_PUBLISH_BASE_URL or KAFKA_BOOTSTRAP_SERVER, and MONGODB_URI)");
             complete(run.id(), false, false);
             return;
         }
@@ -378,13 +378,14 @@ public class RunExecutor {
                 throw new PublishFailure(e.getMessage(), e);
             }
             jdbc.sql("UPDATE test_run_case SET published_at = CURRENT_TIMESTAMP, kafka_partition = :p, kafka_offset = :o WHERE id = :i")
-                    .param("p", sent.partition()).param("o", sent.offset()).param("i", runCaseId).update();
+                    .param("p", sent.partition() < 0 ? null : sent.partition()).param("o", sent.offset() < 0 ? null : sent.offset())
+                    .param("i", runCaseId).update();
             jdbc.sql("""
                     INSERT INTO run_observation (run_case_id, occurred_at, source, collection, event_type, status,
                       correlation_id, source_document_id)
                     VALUES (:i, CURRENT_TIMESTAMP, 'KAFKA', 'KAFKA', 'published', 'ACKED', :c, :d)
                     """).param("i", runCaseId).param("c", d.correlationId())
-                    .param("d", topic + "@" + sent.partition() + ":" + sent.offset()).update();
+                    .param("d", sent.partition() < 0 ? topic + "@gateway" : topic + "@" + sent.partition() + ":" + sent.offset()).update();
             return new Flight(d, json.readTree(d.expected()), Instant.now().plusSeconds(d.timeout()));
         } catch (PublishFailure e) {
             throw e;
