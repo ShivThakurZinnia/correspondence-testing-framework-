@@ -33,8 +33,8 @@ class ConnectorControllerTest {
         Map<String, Object> body = controller.list();
 
         assertThat(body.get("environment")).isEqualTo("dev");
-        assertThat(rows(body)).extracting(r -> r.get("id")).containsExactly("mongo", "s3", "eds", "kafka");
-        assertThat(rows(body)).extracting(r -> r.get("state")).containsExactly("ok", "failed", "not_configured", "not_configured");
+        assertThat(rows(body)).extracting(r -> r.get("id")).containsExactly("mongo", "s3", "eds", "kafka", "gateway");
+        assertThat(rows(body)).extracting(r -> r.get("state")).containsExactly("ok", "failed", "not_configured", "not_configured", "not_configured");
         assertThat(rows(body).get(0).get("detail")).isEqualTo("up");
     }
 
@@ -47,8 +47,8 @@ class ConnectorControllerTest {
         Map<String, Object> body = controller.list();
 
         assertThat(body.get("environment")).isEqualTo("");
-        assertThat(rows(body)).extracting(r -> r.get("id")).containsExactly("mongo", "s3", "eds", "kafka", "sftp");
-        Map<String, String> sftp = rows(body).get(4);
+        assertThat(rows(body)).extracting(r -> r.get("id")).containsExactly("mongo", "s3", "eds", "kafka", "gateway", "sftp");
+        Map<String, String> sftp = rows(body).get(5);
         assertThat(sftp.get("state")).isEqualTo("failed");
         assertThat(sftp.get("detail")).contains("IllegalStateException").doesNotContain("secret");
         assertThat(rows(body).get(3).get("state")).isEqualTo("not_probed");

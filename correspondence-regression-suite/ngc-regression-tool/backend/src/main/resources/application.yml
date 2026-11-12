@@ -28,6 +28,14 @@ ngc:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVER:}
     key: ${KAFKA_KEY:}
     secret: ${KAFKA_SECRET:}
+  gateway:
+    # Publish through the environment's API Gateway instead of Kafka. Set the base URL (e.g.
+    # https://correspondence-dev.zinnia.com/apigateway) and the direct Kafka publisher turns off.
+    publish-base-url: ${GATEWAY_PUBLISH_BASE_URL:}
+    application-header: ${CORRO_APPLICATION_HEADER:nextgen-correspondence-service}
+    cookie: ${CORRO_GATEWAY_COOKIE:}
+    connect-timeout-ms: 10000
+    read-timeout-ms: 60000
   s3:
     # Bucket holding NGC-generated XML (read-only). Credentials come from the AWS default chain (AWS_PROFILE / SSO / env).
     bucket: ${S3_BUCKET_NAME:}
@@ -44,7 +52,7 @@ ngc:
 regression:
   poll-interval-ms: 5000
   # Safety guard: only these carriers may be injected into a live environment
-  allowed-carriers: GILI
+  allowed-carriers: ${REGRESSION_ALLOWED_CARRIERS:GILI}
   run:
     large-run-threshold: 100    # manual runs above this must confirm the event count (a prompt, not a limit)
     max-in-flight: 25           # unfinished events per run

@@ -34,6 +34,7 @@ Everything that talks to another system lives in `backend/src/main/java/com/zinn
 | `connector/s3` | S3 bucket with generated XML | read-only (`ObjectStore`) | `S3_BUCKET_NAME`, `AWS_REGION`, AWS default credential chain |
 | `connector/eds` | EDS documents through the API Gateway | read-only download (`EdsClient`) | `API_GATEWAY_BASE_URL`, `CORRO_APPLICATION_HEADER`, `CORRO_GATEWAY_COOKIE`, `ngc.eds.*` |
 | `connector/kafka` | Kafka | write (event injection), allowed carriers only | `KAFKA_BOOTSTRAP_SERVER`, `KAFKA_KEY`, `KAFKA_SECRET` |
+| `connector/gateway` | API Gateway publish endpoint | write (event injection), allowed carriers only; replaces direct Kafka when set | `GATEWAY_PUBLISH_BASE_URL`, `CORRO_APPLICATION_HEADER`, `CORRO_GATEWAY_COOKIE` (optional) |
 
 A connector stays off until its settings are present. To add one, create `connector/<system>/`, implement `Connector` on its bean, add its id to `ConnectorController.KNOWN`, and document it in the table above.
 

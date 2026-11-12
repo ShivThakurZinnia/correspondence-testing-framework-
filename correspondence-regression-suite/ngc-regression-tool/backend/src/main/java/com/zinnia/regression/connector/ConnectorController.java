@@ -16,7 +16,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/connectors")
 public class ConnectorController {
 
-    static final List<String> KNOWN = List.of("mongo", "s3", "eds", "kafka");
+    static final List<String> KNOWN = List.of("mongo", "s3", "eds", "kafka", "gateway");
 
     private final List<Connector> connectors;
     private final WiredEnvironment wired;

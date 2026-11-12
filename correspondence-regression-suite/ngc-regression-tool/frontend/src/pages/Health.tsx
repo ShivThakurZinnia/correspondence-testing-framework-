@@ -48,7 +48,7 @@ function Metric({ title, level, value, detail, metric }: { title: string; level:
   );
 }
 
-const CONNECTOR_NAME: Record<string, string> = { mongo: 'MongoDB', s3: 'S3', eds: 'EDS documents', kafka: 'Kafka' };
+const CONNECTOR_NAME: Record<string, string> = { mongo: 'MongoDB', s3: 'S3', eds: 'EDS documents', kafka: 'Kafka', gateway: 'API Gateway publish' };
 const CONNECTOR_LEVEL: Record<ConnectorRow['state'], Level> = { ok: 'ok', failed: 'bad', not_probed: 'info', not_configured: 'info' };
 
 function ConnectionsCard() {

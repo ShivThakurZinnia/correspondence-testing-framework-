@@ -12,9 +12,9 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.stereotype.Component;
 
-/** Producer with the durability settings NGC itself uses (acks=all, idempotent); SASL_SSL only when a key is configured. */
+/** Direct Kafka publishing; off when a gateway publish URL is set (the gateway publisher then takes over). Producer with the durability settings NGC itself uses (acks=all, idempotent); SASL_SSL only when a key is configured. */
 @Component
-@ConditionalOnExpression("!'${ngc.kafka.bootstrap-servers:}'.isEmpty()")
+@ConditionalOnExpression("!'${ngc.kafka.bootstrap-servers:}'.isEmpty() && '${ngc.gateway.publish-base-url:}'.isEmpty()")
 public class KafkaEventPublisher implements EventPublisher, Connector {
 
     private final KafkaProducer<String, String> producer;
