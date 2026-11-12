@@ -405,3 +405,29 @@ input[type=file] { border: 0; padding: 4px 0; background: none; box-shadow: none
 .marker-list { margin: 0; padding-left: 18px; }
 .marker-list li { padding: 3px 0; }
 @media (max-width: 900px) { .forensics { grid-template-columns: 1fr; } }
+
+/* grouped events */
+.group { border: 1px solid var(--line); border-radius: var(--radius); margin-bottom: 10px; background: var(--panel); overflow: hidden; }
+.group > summary { list-style: none; cursor: pointer; display: grid; grid-template-columns: 28px 1fr auto; gap: 12px; align-items: center; padding: 11px 12px; background: var(--panel-2); }
+.group > summary::-webkit-details-marker { display: none; }
+.group > summary::after { content: '▾'; color: var(--muted); grid-column: 4; }
+.group:not([open]) > summary::after { content: '▸'; }
+.group > summary { grid-template-columns: 28px 1fr auto 16px; }
+.group[open] > summary { border-bottom: 1px solid var(--line); }
+.group-meta { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
+.group.group-failed { border-left: 3px solid var(--bad); }
+.group.group-passed { border-left: 3px solid var(--ok); }
+.case-row.in-group { padding-left: 28px; }
+.run-block { margin-bottom: 18px; }
+.run-block-head { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; margin: -16px -18px 12px; padding: 11px 18px; border-bottom: 1px solid var(--line); background: var(--panel-2); border-radius: var(--radius) var(--radius) 0 0; }
+.run-block-head .grow { flex: 1; }
+.sibling-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.run-block-head.toggle { cursor: pointer; user-select: none; }
+.run-block-head.toggle:hover { background: var(--panel); }
+.run-block.collapsed .run-block-head { margin-bottom: -16px; border-bottom: 0; border-radius: var(--radius); }
+.run-block-head .chev { width: 12px; color: var(--muted); }
+.bucket-title { margin: 14px 2px 8px; font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.07em; color: var(--muted); }
+.upcoming-item { border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 12px; margin-bottom: 10px; }
+.upcoming-head { display: flex; flex-direction: column; gap: 2px; margin-bottom: 6px; }
+.upcoming-scenarios { margin: 8px 0 0; max-height: 260px; overflow: auto; }
+.upcoming-scenarios li { padding: 5px 0; border-bottom: 1px solid var(--line); }

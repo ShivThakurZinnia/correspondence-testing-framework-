@@ -31,9 +31,33 @@ export function EventDetail() {
             <span className="mono">{ev.correlation_id}</span> · {ev.carrier}{ev.plan_code ? ` · plan ${ev.plan_code}` : ''} · {ev.event_type} · topic <span className="mono">{ev.topic_name || '–'}</span>
           </>
         }
-        actions={<Link className="btn" to={`/runs/${ev.run_key}`}>← Run #{shortKey(ev.run_key)}</Link>}
+        actions={<><Link className="btn" to={`/events?run=${ev.run_key}`}>All events of run</Link><Link className="btn" to={`/runs/${ev.run_key}`}>← Run #{shortKey(ev.run_key)}</Link></>}
       />
       {ev.failure_summary && <div className="note error">{ev.failure_summary}</div>}
+
+      {(ev.siblings.length > 0 || ev.previous) && (
+        <Card title="Related events">
+          {ev.siblings.length > 0 && (
+            <div>
+              <div className="muted small">Same test case in this run ({ev.siblings.length} other {ev.siblings.length === 1 ? 'event' : 'events'})</div>
+              <div className="sibling-chips">
+                {ev.siblings.map((s) => (
+                  <Link key={s.correlation_id} to={`/events/${s.correlation_id}`} className={`chip chip-btn sibling-${s.status.toLowerCase()}`}>
+                    <StatusIcon status={s.status} size={12} /> {s.plan_code ?? 'no plan code'}
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
+          {ev.previous && (
+            <div style={{ marginTop: ev.siblings.length ? 10 : 0 }}>
+              Previous run: <Link to={`/events/${ev.previous.correlation_id}`}>{ev.previous.status.toLowerCase()} in #{shortKey(ev.previous.run_key)}</Link>
+              <span className="muted"> ({formatDateTime(ev.previous.finished_at)})</span>
+              {ev.previous.status === 'PASSED' && ['FAILED', 'TIMEOUT', 'ERROR'].includes(ev.status) && <strong className="bad-text"> · regression</strong>}
+            </div>
+          )}
+        </Card>
+      )}
 
       <Card title="Progress">
         {ev.progress && <StageStepper progress={ev.progress} status={ev.status} />}

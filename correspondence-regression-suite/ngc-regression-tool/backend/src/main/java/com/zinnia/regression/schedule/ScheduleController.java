@@ -27,6 +27,12 @@ public class ScheduleController {
         return service.list();
     }
 
+    /** Next scheduled runs, soonest first, with the test cases each will play. */
+    @GetMapping("/upcoming")
+    public List<Map<String, Object>> upcoming(@org.springframework.web.bind.annotation.RequestParam(defaultValue = "10") int limit) {
+        return service.upcoming(limit);
+    }
+
     @PostMapping
     public ResponseEntity<Map<String, Object>> create(@RequestBody ScheduleRequest request,
                                                       java.security.Principal principal) {

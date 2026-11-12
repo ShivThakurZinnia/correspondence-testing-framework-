@@ -186,6 +186,39 @@ public class ScheduleService {
         return out;
     }
 
+    /**
+     * The next scheduled runs, soonest first, each with the test cases it would play right now (a schedule always runs the
+     * module's newest cases, so this is a forecast). A schedule whose selection is empty or refused carries a
+     * {@code problem} instead of scenarios.
+     */
+    public List<Map<String, Object>> upcoming(int limit) {
+        List<Map<String, Object>> out = new ArrayList<>();
+        list().stream().filter(s -> Boolean.TRUE.equals(s.get("enabled"))).filter(s -> s.get("next_fire_at") != null)
+                .sorted(java.util.Comparator.comparing(s -> s.get("next_fire_at").toString()))
+                .limit(Math.max(1, Math.min(limit, 50))).forEach(s -> {
+                    Map<String, Object> row = new java.util.LinkedHashMap<>();
+                    for (String k : List.of("id", "name", "env", "module", "tag_expression", "cron_expression", "timezone",
+                            "next_fire_at", "executing")) {
+                        row.put(k, s.get(k));
+                    }
+                    try {
+                        Integer versionNo = s.get("module") == null ? null
+                                : s.get("pinned_version_no") != null ? ((Number) s.get("pinned_version_no")).intValue()
+                                : versionNo(Map.of("module", s.get("module")));
+                        List<Map<String, Object>> scenarios = runs.scenarios(new RunRequest((String) s.get("module"), versionNo,
+                                (String) s.get("env"), (String) s.get("tag_expression"), "SCHEDULE"));
+                        row.put("scenarios", scenarios);
+                        row.put("events", scenarios.stream().mapToInt(x -> ((Number) x.get("events")).intValue()).sum());
+                    } catch (ValidationException e) {
+                        row.put("scenarios", List.of());
+                        row.put("events", 0);
+                        row.put("problem", e.getMessage());
+                    }
+                    out.add(row);
+                });
+        return out;
+    }
+
     @Transactional
     public void setEnabled(long id, boolean enabled) {
         if (jdbc.sql("UPDATE schedule SET enabled = :e WHERE id = :i").param("e", enabled).param("i", id).update() == 0) {

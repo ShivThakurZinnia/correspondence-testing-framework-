@@ -1,10 +1,11 @@
 import { useMutation, useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { Card, Empty, ErrorNote, PageHeader, StageStepper, StatusBadge, StatusIcon } from '../components/ui';
+import { CaseRow } from '../components/CaseRow';
+import { Card, Empty, ErrorNote, PageHeader, StatusBadge, StatusIcon } from '../components/ui';
 import { api } from '../lib/api';
 import { formatDateTime, formatDuration, percent, shortKey } from '../lib/format';
-import { countOf, FILTERS, finishedEvents, runScope, totalEvents } from '../lib/runs';
+import { countOf, FILTERS, finishedEvents, groupHeadline, runScope, totalEvents } from '../lib/runs';
 import type { RunCompare, RunDetail as Run } from '../lib/types';
 
 const PAGE = 50;
@@ -28,7 +29,7 @@ export function RunDetail() {
   const statuses = FILTERS.find((f) => f.key === filter)?.statuses ?? '';
   const { data: run, error } = useQuery({
     queryKey: ['run', runKey, statuses, q, page],
-    queryFn: () => api<Run>(`/api/runs/${runKey}?size=${PAGE}&page=${page}${statuses ? `&status=${statuses}` : ''}${q ? `&q=${encodeURIComponent(q)}` : ''}`),
+    queryFn: () => api<Run>(`/api/runs/${runKey}?group=scenario&size=${PAGE}&page=${page}${statuses ? `&status=${statuses}` : ''}${q ? `&q=${encodeURIComponent(q)}` : ''}`),
     refetchInterval: (query) => (query.state.data && ['RUNNING', 'QUEUED'].includes(query.state.data.status) ? 2000 : false),
     placeholderData: keepPreviousData,
   });
@@ -50,6 +51,7 @@ export function RunDetail() {
   const seconds = run.started_at ? Math.round(((run.finished_at ? new Date(run.finished_at).getTime() : Date.now()) - new Date(run.started_at).getTime()) / 1000) : null;
   const from = run.matching === 0 ? 0 : run.page * run.size + 1;
   const to = Math.min(run.matching, (run.page + 1) * run.size);
+  const open = (status: string) => status === 'FAILED' || status === 'RUNNING';
   const diff = compare.data;
 
   return (
@@ -135,34 +137,36 @@ export function RunDetail() {
             );
           })}
         </div>
-        {run.cases.length === 0 ? (
+        {run.groups.length === 0 ? (
           <Empty>No events match.</Empty>
         ) : (
           <div className="case-list">
-            {run.cases.map((c) => (
-              <Link key={c.correlation_id} to={`/events/${c.correlation_id}`} className={`case-row case-${c.status.toLowerCase()}`}>
-                <StatusIcon status={c.status} size={22} />
-                <div className="case-main">
-                  <div className="case-title">
-                    <strong>{c.scenario_name}</strong>
-                    <span className="chip">{c.carrier}</span>
-                    {c.plan_code && <span className="chip plan-chip" title="Plan code">{c.plan_code}</span>}
-                    <span className="muted">{c.event_type}</span>
-                  </div>
-                  <div className="mono muted small">{c.correlation_id}</div>
-                  {c.failure_summary && <div className="bad-text small">{c.failure_summary}</div>}
-                </div>
-                <div className="case-steps">
-                  {c.progress && <StageStepper progress={c.progress} status={c.status} compact />}
-                  <span className="muted small">{c.final_incoming_status ?? (c.status === 'PENDING' ? 'waiting to be sent' : 'waiting for NGC')}</span>
-                </div>
-              </Link>
-            ))}
+            {run.groups.map((g) =>
+              g.total === 1 && g.cases.length === 1 ? (
+                <CaseRow key={g.test_case_id} c={g.cases[0]} />
+              ) : (
+                <details key={g.test_case_id} className={`group group-${g.status.toLowerCase()}`} open={open(g.status)}>
+                  <summary>
+                    <StatusIcon status={g.status} size={22} />
+                    <div className="case-title">
+                      <strong>{g.scenario_name}</strong>
+                      <span className="chip">{g.carrier}</span>
+                      <span className="muted">{g.event_type}</span>
+                    </div>
+                    <div className="group-meta">
+                      <span className={g.failed ? 'bad-text' : 'muted'}>{groupHeadline(g)}</span>
+                      {g.cases.length < g.total && <span className="muted small">showing {g.cases.length} of {g.total}</span>}
+                    </div>
+                  </summary>
+                  {g.cases.map((c) => <CaseRow key={c.correlation_id} c={c} inGroup />)}
+                </details>
+              ),
+            )}
           </div>
         )}
         <div className="pager">
           <button className="btn" disabled={page === 0} onClick={() => setPage(page - 1)}>← Previous</button>
-          <span className="muted">{from}–{to} of {run.matching}</span>
+          <span className="muted">Test cases {from}–{to} of {run.matching} · {run.matching_events} events</span>
           <button className="btn" disabled={to >= run.matching} onClick={() => setPage(page + 1)}>Next →</button>
         </div>
       </Card>
